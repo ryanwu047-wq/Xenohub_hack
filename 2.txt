@@ -1,0 +1,982 @@
+-- ======================================================
+-- XENO HUB v9.0 - 第 2 段 / 共 6 段
+-- 接第 1 段末尾执行
+-- ======================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local Debris = game:GetService("Debris")
+local StarterGui = game:GetService("StarterGui")
+local LocalPlayer = _G.XenoRefs.LocalPlayer
+local Camera = _G.XenoRefs.Camera
+local State = _G.XenoRefs.State
+local ScreenGui = _G.XenoRefs.ScreenGui
+local Main = _G.XenoRefs.Main
+local ContentWrap = _G.XenoRefs.ContentWrap
+local Theme = _G.XenoRefs.Theme
+local flyConfig = _G.XenoRefs.flyConfig
+local addCategory = _G.XenoRefs.addCategory
+local section = _G.XenoRefs.section
+local toggle = _G.XenoRefs.toggle
+local slider = _G.XenoRefs.slider
+local button = _G.XenoRefs.button
+local input = _G.XenoRefs.input
+local paragraph = _G.XenoRefs.paragraph
+local realTP = _G.XenoRefs.realTP
+local tpToPlayer = _G.XenoRefs.tpToPlayer
+
+print("[Xeno Hub] 第 2 段加载中...")
+
+-- 自转特化
+local SpinP = addCategory("自转特化")
+section(SpinP, "旋转模式")
+
+toggle(SpinP, "1. 自转 (相机不动)", false, function(v)
+    State.SpinNoCamera = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.SpinNoCamera then return end
+                    local char = LocalPlayer.Character
+                    if not char then return end
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    if not hrp then return end
+                    hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(State.SpinSpeed), 0)
+                end)
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+slider(SpinP, "自转速度", 1, 120, 15, " °/帧", function(v) State.SpinSpeed = v end)
+
+toggle(SpinP, "2. 身体自转", false, function(v)
+    State.SpinBody = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.SpinBody then return end
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(20), 0) end
+                end)
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+
+toggle(SpinP, "3. 超快速旋转", false, function(v)
+    State.SpinFast = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.SpinFast then return end
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(90), 0) end
+                end)
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+
+toggle(SpinP, "4. 慢速旋转", false, function(v)
+    State.SpinSlow = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.SpinSlow then return end
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(2), 0) end
+                end)
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+
+toggle(SpinP, "5. X 轴旋转 (翻滚)", false, function(v)
+    State.SpinAxisX = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.SpinAxisX then return end
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then hrp.CFrame = hrp.CFrame * CFrame.Angles(math.rad(10), 0, 0) end
+                end)
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+
+toggle(SpinP, "6. Z 轴旋转 (侧滚)", false, function(v)
+    State.SpinAxisZ = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.SpinAxisZ then return end
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then hrp.CFrame = hrp.CFrame * CFrame.Angles(0, 0, math.rad(10)) end
+                end)
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+
+toggle(SpinP, "7. 随机轴旋转", false, function(v)
+    State.SpinRandom = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.SpinRandom then return end
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        hrp.CFrame = hrp.CFrame * CFrame.Angles(
+                            math.rad(math.random(-30,30)),
+                            math.rad(math.random(-30,30)),
+                            math.rad(math.random(-30,30))
+                        )
+                    end
+                end)
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+
+toggle(SpinP, "8. 摇晃旋转", false, function(v)
+    State.SpinWobble = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.SpinWobble then return end
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        local t = tick() * 5
+                        hrp.CFrame = hrp.CFrame * CFrame.Angles(math.sin(t) * 0.2, 0, math.cos(t) * 0.2)
+                    end
+                end)
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+
+toggle(SpinP, "9. 45° 倾斜旋转", false, function(v)
+    State.SpinTilt = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.SpinTilt then return end
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then hrp.CFrame = CFrame.Angles(0, 0, math.rad(45)) * hrp.CFrame * CFrame.Angles(0, math.rad(15), 0) end
+                end)
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+
+toggle(SpinP, "10. 垂直旋转 (转成轮子)", false, function(v)
+    State.SpinVertical = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.SpinVertical then return end
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then hrp.CFrame = hrp.CFrame * CFrame.Angles(math.rad(15), 0, 0) end
+                end)
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+
+-- 角色操控
+local CharP = addCategory("角色操控")
+
+toggle(CharP, "11. 隐形", false, function(v)
+    State.Invisible = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.Invisible then return end
+                    local char = LocalPlayer.Character
+                    if char then
+                        for _, p in pairs(char:GetDescendants()) do
+                            if p:IsA("BasePart") then p.Transparency = 1
+                            elseif p:IsA("Decal") then p.Transparency = 1 end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+
+toggle(CharP, "12. 幽灵模式 (半透明)", false, function(v)
+    State.GhostMode = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.GhostMode then return end
+                    local char = LocalPlayer.Character
+                    if char then
+                        for _, p in pairs(char:GetDescendants()) do
+                            if p:IsA("BasePart") then p.Transparency = 0.7 end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+
+toggle(CharP, "13. 无头模式", false, function(v)
+    State.HeadlessMode = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.HeadlessMode then return end
+                    local head = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head")
+                    if head then head.Transparency = 1 end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+
+toggle(CharP, "14. 巨人模式", false, function(v)
+    State.GiantMode = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.GiantMode then return end
+                    local char = LocalPlayer.Character
+                    if char then
+                        local hum = char:FindFirstChildOfClass("Humanoid")
+                        if hum then
+                            pcall(function() hum.BodyDepthScale.Value = 2 end)
+                            pcall(function() hum.BodyHeightScale.Value = 2 end)
+                            pcall(function() hum.BodyWidthScale.Value = 2 end)
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+
+toggle(CharP, "15. 迷你模式", false, function(v)
+    State.TinyMode = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.TinyMode then return end
+                    local char = LocalPlayer.Character
+                    if char then
+                        local hum = char:FindFirstChildOfClass("Humanoid")
+                        if hum then
+                            pcall(function() hum.BodyDepthScale.Value = 0.3 end)
+                            pcall(function() hum.BodyHeightScale.Value = 0.3 end)
+                            pcall(function() hum.BodyWidthScale.Value = 0.3 end)
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+
+toggle(CharP, "16. 方块模式", false, function(v)
+    State.BlockyMode = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.BlockyMode then return end
+                    local char = LocalPlayer.Character
+                    if char then
+                        for _, p in pairs(char:GetDescendants()) do
+                            if p:IsA("MeshPart") then p.MeshId = "" end
+                        end
+                    end
+                end)
+                task.wait(1)
+            end
+        end)
+    end
+end)
+
+toggle(CharP, "17. 彩虹身体 (全服可见)", false, function(v)
+    State.RainbowChar = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.RainbowChar then return end
+                    local char = LocalPlayer.Character
+                    if char then
+                        for _, p in pairs(char:GetDescendants()) do
+                            if p:IsA("BasePart") then p.Color = Color3.fromHSV((tick() * 0.2) % 1, 1, 1) end
+                        end
+                    end
+                end)
+                task.wait(0.05)
+            end
+        end)
+    end
+end)
+
+toggle(CharP, "18. 霓虹身体 (全服可见)", false, function(v)
+    State.NeonChar = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.NeonChar then return end
+                    local char = LocalPlayer.Character
+                    if char then
+                        for _, p in pairs(char:GetDescendants()) do
+                            if p:IsA("BasePart") then p.Material = Enum.Material.Neon end
+                        end
+                    end
+                end)
+                task.wait(1)
+            end
+        end)
+    end
+end)
+
+button(CharP, "19. 力场视觉", function()
+    local char = LocalPlayer.Character
+    if char then
+        local ff = Instance.new("ForceField")
+        ff.Parent = char
+        Debris:AddItem(ff, 30)
+    end
+end)
+
+toggle(CharP, "20. 火焰光环", false, function(v)
+    State.FireHalo = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.FireHalo then return end
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp and not hrp:FindFirstChild("XenoFire") then
+                        local f = Instance.new("Fire")
+                        f.Name = "XenoFire"
+                        f.Size = 5
+                        f.Heat = 15
+                        f.Parent = hrp
+                    end
+                end)
+                task.wait(1)
+            end
+        end)
+    end
+end)
+
+-- 视觉扩展
+local VXP = addCategory("视觉扩展")
+
+toggle(VXP, "21. X 光模式", false, function(v)
+    State.XrayMode = v
+    if v then
+        for _, obj in pairs(workspace:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("BasePart") and obj.Transparency < 1 then
+                    obj.LocalTransparencyModifier = 1
+                end
+            end)
+        end
+    else
+        for _, obj in pairs(workspace:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("BasePart") then obj.LocalTransparencyModifier = 0 end
+            end)
+        end
+    end
+end)
+
+toggle(VXP, "22. 隐藏所有名字标签", false, function(v)
+    if v then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p.Character then
+                local head = p.Character:FindFirstChild("Head")
+                if head then
+                    local nh = head:FindFirstChildOfClass("BillboardGui")
+                    if nh then nh.Enabled = false end
+                end
+            end
+        end
+    end
+end)
+
+toggle(VXP, "23. 超远第三人称", false, function(v)
+    if v then LocalPlayer.CameraMaxZoomDistance = 500
+    else LocalPlayer.CameraMaxZoomDistance = 128 end
+end)
+
+toggle(VXP, "24. 锁定第一人称", false, function(v)
+    if v then LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
+    else LocalPlayer.CameraMode = Enum.CameraMode.Classic end
+end)
+
+toggle(VXP, "25. FOV 增强", false, function(v)
+    if v then Camera.FieldOfView = 120
+    else Camera.FieldOfView = 70 end
+end)
+
+toggle(VXP, "26. 移除所有粒子", false, function(v)
+    State.NoParticles = v
+    if v then
+        for _, obj in pairs(workspace:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("ParticleEmitter") then obj.Enabled = false end
+            end)
+        end
+    end
+end)
+
+toggle(VXP, "27. 移除所有贴图", false, function(v)
+    State.NoTextures = v
+    if v then
+        for _, obj in pairs(workspace:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("Decal") or obj:IsA("Texture") then obj.Transparency = 1 end
+            end)
+        end
+    end
+end)
+
+toggle(VXP, "28. 线框模式", false, function(v)
+    if v then
+        for _, obj in pairs(workspace:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("BasePart") then
+                    obj.Material = Enum.Material.SmoothPlastic
+                    obj.Color = Color3.fromRGB(255, 255, 255)
+                end
+            end)
+        end
+    end
+end)
+
+-- 工具扩展
+local TP = addCategory("工具扩展")
+
+toggle(TP, "31. 无限子弹", false, function(v)
+    State.InfiniteAmmo = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.InfiniteAmmo then return end
+                    local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                    if tool then
+                        for _, c in pairs(tool:GetDescendants()) do
+                            if c:IsA("IntValue") and (c.Name:lower():find("ammo") or c.Name:lower():find("clip")) then
+                                c.Value = c.MaxValue or 999
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+
+toggle(TP, "32. 无限射速", false, function(v)
+    State.RapidFire = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.RapidFire then return end
+                    local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                    if tool then
+                        for _, c in pairs(tool:GetDescendants()) do
+                            if c:IsA("NumberValue") and (c.Name:lower():find("fire") or c.Name:lower():find("rate") or c.Name:lower():find("cooldown")) then
+                                c.Value = 0.001
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+
+toggle(TP, "33. 无后坐", false, function(v)
+    State.NoRecoil = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.NoRecoil then return end
+                    local char = LocalPlayer.Character
+                    if char then
+                        for _, obj in pairs(char:GetDescendants()) do
+                            if obj:IsA("NumberValue") and obj.Name:lower():find("recoil") then
+                                obj.Value = 0
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+
+toggle(TP, "34. 无扩散", false, function(v)
+    State.NoSpread = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.NoSpread then return end
+                    local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                    if tool then
+                        for _, obj in pairs(tool:GetDescendants()) do
+                            if obj:IsA("NumberValue") and obj.Name:lower():find("spread") then
+                                obj.Value = 0
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+
+-- 物理扩展
+local PhysP = addCategory("物理扩展")
+
+toggle(PhysP, "37. 零重力", false, function(v)
+    State.ZeroGravity = v
+    if v then workspace.Gravity = 0
+    else workspace.Gravity = State.OriginalGravity end
+end)
+
+toggle(PhysP, "38. 高重力", false, function(v)
+    if v then workspace.Gravity = 500
+    else workspace.Gravity = State.OriginalGravity end
+end)
+
+toggle(PhysP, "39. 月球跳跃", false, function(v)
+    State.MoonJump = v
+    local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if h then
+        h.UseJumpPower = true
+        h.JumpPower = v and 200 or State.Jump
+    end
+end)
+
+toggle(PhysP, "40. 布娃娃 (本地)", false, function(v)
+    State.Ragdoll = v
+    local char = LocalPlayer.Character
+    if not char then return end
+    for _, m in pairs(char:GetDescendants()) do
+        if m:IsA("Motor6D") then m.Enabled = not v end
+    end
+end)
+
+-- 时间控制
+local TimeP = addCategory("时间控制")
+
+toggle(TimeP, "42. 时间快进", false, function(v)
+    State.TimeFast = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.TimeFast then return end
+                    Lighting.ClockTime = (Lighting.ClockTime + 0.5) % 24
+                end)
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+toggle(TimeP, "43. 时间倒流", false, function(v)
+    State.TimeReverse = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.TimeReverse then return end
+                    Lighting.ClockTime = (Lighting.ClockTime - 0.5) % 24
+                end)
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+toggle(TimeP, "44. 时间冻结", false, function(v)
+    State.TimeFrozen = v
+end)
+
+-- c00lkidd 扩展
+local CKP = addCategory("c00lkidd 扩展")
+
+toggle(CKP, "45. 全部玩家彩虹 (本地)", false, function(v)
+    State.AllRainbow = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AllRainbow then return end
+                    for _, p in pairs(Players:GetPlayers()) do
+                        local char = p.Character
+                        if char then
+                            for _, obj in pairs(char:GetDescendants()) do
+                                if obj:IsA("BasePart") then obj.Color = Color3.fromHSV((tick() * 0.2) % 1, 1, 1) end
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.05)
+            end
+        end)
+    end
+end)
+
+toggle(CKP, "46. 全部玩家霓虹 (本地)", false, function(v)
+    State.AllNeon = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AllNeon then return end
+                    for _, p in pairs(Players:GetPlayers()) do
+                        local char = p.Character
+                        if char then
+                            for _, obj in pairs(char:GetDescendants()) do
+                                if obj:IsA("BasePart") then obj.Material = Enum.Material.Neon end
+                            end
+                        end
+                    end
+                end)
+                task.wait(1)
+            end
+        end)
+    end
+end)
+
+toggle(CKP, "47. 全部玩家变小 (本地)", false, function(v)
+    State.AllTiny = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AllTiny then return end
+                    for _, p in pairs(Players:GetPlayers()) do
+                        local char = p.Character
+                        local hum = char and char:FindFirstChildOfClass("Humanoid")
+                        if hum then
+                            pcall(function() hum.BodyHeightScale.Value = 0.3 end)
+                            pcall(function() hum.BodyWidthScale.Value = 0.3 end)
+                        end
+                    end
+                end)
+                task.wait(1)
+            end
+        end)
+    end
+end)
+
+toggle(CKP, "48. 全部玩家倒立 (本地)", false, function(v)
+    State.AllUpsideDown = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AllUpsideDown then return end
+                    for _, p in pairs(Players:GetPlayers()) do
+                        if p == LocalPlayer then continue end
+                        local hrp = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                        if hrp then hrp.CFrame = hrp.CFrame * CFrame.Angles(math.pi, 0, 0) end
+                    end
+                end)
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+
+toggle(CKP, "49. 全部玩家旋转 (本地)", false, function(v)
+    State.AllSpinning = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AllSpinning then return end
+                    for _, p in pairs(Players:GetPlayers()) do
+                        if p == LocalPlayer then continue end
+                        local hrp = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                        if hrp then hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(15), 0) end
+                    end
+                end)
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+
+toggle(CKP, "50. 全部玩家着火 (本地)", false, function(v)
+    State.AllOnFire = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AllOnFire then return end
+                    for _, p in pairs(Players:GetPlayers()) do
+                        if p == LocalPlayer then continue end
+                        local hrp = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                        if hrp and not hrp:FindFirstChild("XenoFireAll") then
+                            local f = Instance.new("Fire")
+                            f.Name = "XenoFireAll"
+                            f.Size = 8
+                            f.Parent = hrp
+                        end
+                    end
+                end)
+                task.wait(1)
+            end
+        end)
+    end
+end)
+
+-- 战斗增强
+local CAP = addCategory("战斗增强")
+
+toggle(CAP, "自动开枪 (FOV 内)", false, function(v)
+    State.AutoFire = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AutoFire then return end
+                    local vp = Camera.ViewportSize / 2
+                    local target = false
+                    for _, p in pairs(Players:GetPlayers()) do
+                        if p == LocalPlayer then continue end
+                        local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+                        local hrp = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                        if hum and hrp and hum.Health > 0 then
+                            local sp, on = Camera:WorldToViewportPoint(hrp.Position)
+                            if on and sp.Z > 0 and (Vector2.new(sp.X, sp.Y) - vp).Magnitude < State.FOV then
+                                target = true; break
+                            end
+                        end
+                    end
+                    if target then
+                        local vu = game:GetService("VirtualUser")
+                        vu:CaptureController()
+                        vu:ClickButton1(Vector2.new(100, 100))
+                    end
+                end)
+                task.wait(0.05)
+            end
+        end)
+    end
+end)
+
+toggle(CAP, "自动近战", false, function(v)
+    State.AutoMelee = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AutoMelee then return end
+                    local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if myHRP then
+                        for _, p in pairs(Players:GetPlayers()) do
+                            if p == LocalPlayer then continue end
+                            local hrp = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                            if hrp and (hrp.Position - myHRP.Position).Magnitude < 8 then
+                                local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                                if tool then tool:Activate() end
+                                break
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.3)
+            end
+        end)
+    end
+end)
+
+-- 自动化机器
+local AMP = addCategory("自动化机器")
+
+toggle(AMP, "自动使用道具", false, function(v)
+    State.AutoUseItem = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AutoUseItem then return end
+                    local char = LocalPlayer.Character
+                    if char then
+                        for _, tool in pairs(char:GetChildren()) do
+                            if tool:IsA("Tool") and (tool.Name:lower():find("potion") or tool.Name:lower():find("heal")) then
+                                pcall(function() tool:Activate() end)
+                            end
+                        end
+                    end
+                end)
+                task.wait(3)
+            end
+        end)
+    end
+end)
+
+toggle(AMP, "自动开箱子", false, function(v)
+    State.AutoOpenChest = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AutoOpenChest then return end
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        for _, obj in pairs(workspace:GetDescendants()) do
+                            if obj:IsA("Model") and obj.Name:lower():find("chest") then
+                                local handle = obj:FindFirstChild("Handle") or obj:FindFirstChildWhichIsA("BasePart")
+                                if handle and (handle.Position - hrp.Position).Magnitude < 15 then
+                                    hrp.CFrame = CFrame.new(handle.Position + Vector3.new(0, 3, 0))
+                                    task.wait(0.3)
+                                end
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.8)
+            end
+        end)
+    end
+end)
+
+toggle(AMP, "自动聊天 (定时)", false, function(v)
+    State.AutoChat = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AutoChat then return end
+                    local txt = getgenv().AutoChatText or "Hello"
+                    local dcs = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
+                    if dcs then
+                        local sm = dcs:FindFirstChild("SayMessageRequest")
+                        if sm then sm:FireServer(txt, "All") end
+                    end
+                end)
+                task.wait(15)
+            end
+        end)
+    end
+end)
+input(AMP, "自动聊天内容", "Hello", function(t) getgenv().AutoChatText = t end)
+
+-- 杂项
+local MXP = addCategory("杂项")
+
+UIS.InputBegan:Connect(function(i, gp)
+    if gp then return end
+    if i.KeyCode == Enum.KeyCode.LeftAlt then
+        local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if h then h.WalkSpeed = 100 end
+    end
+end)
+UIS.InputEnded:Connect(function(i, gp)
+    if gp then return end
+    if i.KeyCode == Enum.KeyCode.LeftAlt then
+        local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if h then h.WalkSpeed = State.Speed end
+    end
+end)
+paragraph(MXP, "速度爆发", "按住 LeftAlt 加速到 100")
+
+UIS.InputBegan:Connect(function(i, gp)
+    if gp then return end
+    if i.KeyCode == Enum.KeyCode.Home then
+        if State.SavedPositions["家"] then realTP(State.SavedPositions["家"]) end
+    end
+end)
+paragraph(MXP, "快捷键传送", "按 Home 传回家 (需先保存'家')")
+
+UIS.InputBegan:Connect(function(i, gp)
+    if gp then return end
+    if i.KeyCode == Enum.KeyCode.End then
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then hrp.CFrame = CFrame.new(0, 500, 0) end
+    end
+end)
+paragraph(MXP, "紧急逃跑", "按 End 飞到 500 高度")
+
+button(MXP, "下雨 (本地)", function()
+    pcall(function()
+        local old = Lighting:FindFirstChild("XenoRain")
+        if old then old:Destroy() end
+        local rain = Instance.new("ParticleEmitter")
+        rain.Name = "XenoRain"
+        rain.Texture = "rbxasset://textures/particles/raindrop.png"
+        rain.Rate = 1000
+        rain.Speed = NumberRange.new(100, 150)
+        rain.Lifetime = NumberRange.new(1, 2)
+        rain.Size = NumberSequence.new(0.5)
+        rain.SpreadAngle = Vector2.new(0, 0)
+        local attach = Instance.new("Attachment")
+        attach.Name = "XenoRainAttach"
+        attach.Position = Vector3.new(0, 100, 0)
+        attach.Parent = workspace.Terrain
+        rain.Parent = attach
+        Debris:AddItem(rain, 30)
+        Debris:AddItem(attach, 30)
+    end)
+end)
+
+print("[Xeno Hub] 第 2 段已加载")
+
+pcall(function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "Xeno Hub (第 2 段)",
+        Text = "扩展包已加载 | 发'继续'拿第 3 段",
+        Duration = 5
+    })
+end)

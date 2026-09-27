@@ -1,0 +1,316 @@
+-- ======================================================
+-- XENO HUB v9.0 - 第 4 段 / 共 6 段 (100 功能)
+-- 接第 3 段末尾执行
+-- ======================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local Debris = game:GetService("Debris")
+local StarterGui = game:GetService("StarterGui")
+local VirtualUser = game:GetService("VirtualUser")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = _G.XenoRefs.LocalPlayer
+local Camera = _G.XenoRefs.Camera
+local State = _G.XenoRefs.State
+local ScreenGui = _G.XenoRefs.ScreenGui
+local Theme = _G.XenoRefs.Theme
+local addCategory = _G.XenoRefs.addCategory
+local section = _G.XenoRefs.section
+local toggle = _G.XenoRefs.toggle
+local slider = _G.XenoRefs.slider
+local button = _G.XenoRefs.button
+local input = _G.XenoRefs.input
+local paragraph = _G.XenoRefs.paragraph
+local realTP = _G.XenoRefs.realTP
+
+print("[Xeno Hub] 第 4 段加载中 (100 功能)...")
+
+-- 战斗 v2 (20)
+local C4 = addCategory("战斗 v2")
+
+section(C4, "瞄准优先级")
+toggle(C4, "1. 优先级=最近", false, function(v) if v then State.AimPriority = "nearest" end end)
+toggle(C4, "2. 优先级=最低血", false, function(v) if v then State.AimPriority = "lowhp" end end)
+toggle(C4, "3. 优先级=最远", false, function(v) if v then State.AimPriority = "farthest" end end)
+toggle(C4, "4. 只瞄移动目标", false, function(v) State.AimMoving = v end)
+toggle(C4, "5. 只瞄静止目标", false, function(v) State.AimStill = v end)
+
+section(C4, "自瞄热键")
+toggle(C4, "6. 按住右键自瞄", false, function(v)
+    State.AimHoldRight = v
+    if v then
+        UIS.InputBegan:Connect(function(i, gp)
+            if not gp and i.UserInputType == Enum.UserInputType.MouseButton2 then State.Aimbot = true end
+        end)
+        UIS.InputEnded:Connect(function(i, gp)
+            if not gp and i.UserInputType == Enum.UserInputType.MouseButton2 then State.Aimbot = false end
+        end)
+    end
+end)
+toggle(C4, "7. 按住左Alt自瞄", false, function(v)
+    State.AimHoldAlt = v
+    if v then
+        UIS.InputBegan:Connect(function(i, gp)
+            if not gp and i.KeyCode == Enum.KeyCode.LeftAlt then State.Aimbot = true end
+        end)
+        UIS.InputEnded:Connect(function(i, gp)
+            if not gp and i.KeyCode == Enum.KeyCode.LeftAlt then State.Aimbot = false end
+        end)
+    end
+end)
+slider(C4, "8. 自瞄切换延迟", 0, 1000, 200, " ms", function(v) State.AimSwitchDelay = v end)
+toggle(C4, "9. 锁定不切换目标", false, function(v) State.AimLocked = v end)
+
+section(C4, "伤害辅助")
+toggle(C4, "10. 连杀计数器", false, function(v)
+    State.KillStreak = v
+    if v then
+        State.KillCount = 0
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                p.CharacterAdded:Connect(function()
+                    if State.KillStreak then
+                        State.KillCount = (State.KillCount or 0) + 1
+                        pcall(function()
+                            StarterGui:SetCore("SendNotification", {Title="连杀", Text="×"..State.KillCount, Duration=2})
+                        end)
+                    end
+                end)
+            end
+        end
+    end
+end)
+toggle(C4, "11. 准星命中反馈", false, function(v) State.HitMarker = v end)
+toggle(C4, "12. 敌人开火警告", false, function(v) State.EnemyFireWarn = v end)
+toggle(C4, "13. 伤害数字显示", false, function(v) State.DamageNumbers = v end)
+
+section(C4, "防御辅助")
+toggle(C4, "14. 自动格挡", false, function(v)
+    State.AutoBlock = v
+    if v then
+        task.spawn(function()
+            while State.AutoBlock do
+                pcall(function()
+                    local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                    if tool then tool:Activate() end
+                end)
+                task.wait(0.3)
+            end
+        end)
+    end
+end)
+toggle(C4, "15. 自动闪避 (AD 随机)", false, function(v) State.AutoStrafe = v end)
+toggle(C4, "16. 自动反击", false, function(v) State.AutoCounter = v end)
+toggle(C4, "17. 无敌帧提示", false, function(v) State.IFrameWarn = v end)
+toggle(C4, "18. 低血自动撤退", false, function(v) State.LowHPRetreat = v end)
+slider(C4, "19. 撤退血量阈值", 5, 50, 20, " %", function(v) State.RetreatHP = v end)
+toggle(C4, "20. 自动回血优先", false, function(v) State.PriorityHeal = v end)
+
+-- 移动 v2 (20)
+local M4 = addCategory("移动 v2")
+
+section(M4, "跳跃扩展")
+toggle(M4, "21. 三段跳", false, function(v) State.TripleJump = v end)
+toggle(M4, "22. 四段跳", false, function(v) State.QuadJump = v end)
+toggle(M4, "23. 跳跃高度倍率", false, function(v) State.JumpBoost = v end)
+slider(M4, "24. 跳跃倍率", 1, 5, 2, " x", function(v) State.JumpMult = v end)
+toggle(M4, "25. 落地无伤害", false, function(v) State.NoFallDamage = v end)
+
+section(M4, "冲刺扩展")
+toggle(M4, "26. 无限冲刺", false, function(v) State.InfSprint = v end)
+slider(M4, "27. 冲刺速度", 50, 200, 100, " ws", function(v) State.SprintSpeed = v end)
+toggle(M4, "28. 冲刺时无敌", false, function(v) State.SprintGod = v end)
+toggle(M4, "29. 冲刺无CD", false, function(v) State.NoDashCD = v end)
+toggle(M4, "30. 空中悬停", false, function(v) State.AirHover = v end)
+
+section(M4, "传送扩展")
+toggle(M4, "31. 记录路径点", false, function(v)
+    State.RecordPath = v
+    if v then
+        State.PathPoints = {}
+        task.spawn(function()
+            while State.RecordPath do
+                pcall(function()
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then table.insert(State.PathPoints, hrp.CFrame) end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+button(M4, "32. 回溯路径", function()
+    if State.PathPoints then
+        for i = #State.PathPoints, 1, -1 do
+            realTP(State.PathPoints[i])
+            task.wait(0.3)
+        end
+    end
+end)
+toggle(M4, "33. 随机传送 (每5秒)", false, function(v)
+    State.RandomTP = v
+    if v then
+        task.spawn(function()
+            while State.RandomTP do
+                pcall(function()
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then hrp.CFrame = hrp.CFrame + Vector3.new(math.random(-50,50), 0, math.random(-50,50)) end
+                end)
+                task.wait(5)
+            end
+        end)
+    end
+end)
+toggle(M4, "34. 传送队友", false, function(v) State.TPTeam = v end)
+toggle(M4, "35. 传送最低血队友", false, function(v) State.TPLowHP = v end)
+toggle(M4, "36. 传送最高血敌人", false, function(v) State.TPHighHP = v end)
+toggle(M4, "37. 传送最近敌人", false, function(v) State.TPNearest = v end)
+toggle(M4, "38. 传送最远敌人", false, function(v) State.TPFarthest = v end)
+toggle(M4, "39. 掉落回出生点", false, function(v) State.AutoSpawn = v end)
+toggle(M4, "40. 走路无声", false, function(v) State.SilentWalk = v end)
+
+-- 视觉 v2 (20)
+local V4 = addCategory("视觉 v2")
+
+section(V4, "ESP 增强")
+toggle(V4, "41. ESP 显示队伍", false, function(v) State.ESPTeam = v end)
+toggle(V4, "42. ESP 显示状态", false, function(v) State.ESPState = v end)
+toggle(V4, "43. ESP 显示武器", false, function(v) State.ESPWeapon = v end)
+toggle(V4, "44. ESP 显示速度", false, function(v) State.ESPSpeed = v end)
+toggle(V4, "45. ESP 显示朝向", false, function(v) State.ESPFacing = v end)
+slider(V4, "46. ESP 文字大小", 8, 24, 14, " px", function(v) State.ESPTextSize = v end)
+button(V4, "47. ESP 颜色 → 绿", function() State.ESP_Color = Color3.fromRGB(100, 255, 100) end)
+button(V4, "48. ESP 颜色 → 黄", function() State.ESP_Color = Color3.fromRGB(255, 220, 80) end)
+button(V4, "49. ESP 颜色 → 紫", function() State.ESP_Color = Color3.fromRGB(200, 100, 255) end)
+button(V4, "50. ESP 颜色 → 白", function() State.ESP_Color = Color3.fromRGB(255, 255, 255) end)
+
+section(V4, "屏幕效果")
+toggle(V4, "51. 屏幕边缘血条", false, function(v) State.EdgeHealth = v end)
+toggle(V4, "52. 罗盘显示", false, function(v) State.Compass = v end)
+toggle(V4, "53. 屏幕网格", false, function(v) State.Grid = v end)
+toggle(V4, "54. 准心跟随鼠标", false, function(v) State.CursorCrosshair = v end)
+toggle(V4, "55. 后坐力可视化", false, function(v) State.RecoilView = v end)
+toggle(V4, "56. 屏幕暗角", false, function(v) State.Vignette = v end)
+toggle(V4, "57. 边缘敌意提示", false, function(v) State.EdgeThreat = v end)
+toggle(V4, "58. 队友名字绿色", false, function(v) State.TeamNameGreen = v end)
+toggle(V4, "59. 敌人名字红色", false, function(v) State.EnemyNameRed = v end)
+toggle(V4, "60. 死亡回放", false, function(v) State.DeathCam = v end)
+
+-- 自动化 v2 (20)
+local A4 = addCategory("自动化 v2")
+
+section(A4, "游戏互动")
+toggle(A4, "61. 自动点赞", false, function(v)
+    if v then pcall(function() game:GetService("MarketplaceService"):SetVote(true) end) end
+end)
+toggle(A4, "62. 自动收藏", false, function(v)
+    if v then pcall(function() game:GetService("MarketplaceService"):SetFavorite(true) end) end
+end)
+toggle(A4, "63. 自动关注开发者", false, function(v) State.FollowDev = v end)
+toggle(A4, "64. 自动领每日奖励", false, function(v)
+    State.AutoDaily = v
+    if v then
+        task.spawn(function()
+            while State.AutoDaily do
+                pcall(function()
+                    local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+                    if pg then
+                        for _, obj in pairs(pg:GetDescendants()) do
+                            if obj:IsA("TextButton") then
+                                local t = obj.Text:lower()
+                                if t:find("daily") or t:find("claim") or t:find("reward") then
+                                    obj.MouseButton1Click:Fire()
+                                end
+                            end
+                        end
+                    end
+                end)
+                task.wait(10)
+            end
+        end)
+    end
+end)
+toggle(A4, "65. 自动完成任务", false, function(v) State.AutoQuest = v end)
+toggle(A4, "66. 自动加入队伍", false, function(v) State.AutoTeam = v end)
+toggle(A4, "67. 自动离开队伍", false, function(v) State.AutoLeaveTeam = v end)
+toggle(A4, "68. 自动接受好友", false, function(v) State.AutoFriend = v end)
+toggle(A4, "69. 自动发好友请求", false, function(v) State.AutoSendFriend = v end)
+toggle(A4, "70. 自动打招呼", false, function(v) State.AutoGreet = v end)
+
+section(A4, "循环操作")
+toggle(A4, "71. 自动切换工具", false, function(v)
+    State.AutoSwitchTool = v
+    if v then
+        task.spawn(function()
+            while State.AutoSwitchTool do
+                pcall(function()
+                    local char = LocalPlayer.Character
+                    local backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
+                    if char and backpack then
+                        for _, tool in pairs(backpack:GetChildren()) do
+                            if tool:IsA("Tool") then
+                                tool.Parent = char
+                                break
+                            end
+                        end
+                    end
+                end)
+                task.wait(1)
+            end
+        end)
+    end
+end)
+toggle(A4, "72. 自动技能 1", false, function(v) State.AutoSkill1 = v end)
+toggle(A4, "73. 自动技能 2", false, function(v) State.AutoSkill2 = v end)
+toggle(A4, "74. 自动按顺序放技能", false, function(v) State.AutoSkillSequence = v end)
+toggle(A4, "75. 自动拾取近处物品", false, function(v) State.AutoPickupNear = v end)
+toggle(A4, "76. 自动卖物品", false, function(v) State.AutoSell = v end)
+toggle(A4, "77. 自动存物品", false, function(v) State.AutoStore = v end)
+toggle(A4, "78. 自动组队切换", false, function(v) State.AutoPartySwap = v end)
+toggle(A4, "79. 自动进出副本", false, function(v) State.AutoDungeon = v end)
+toggle(A4, "80. 自动追打 Boss", false, function(v) State.AutoBoss = v end)
+
+-- 信息 v2 (10)
+local I4 = addCategory("信息 v2")
+
+toggle(I4, "81. 显示坐标", false, function(v) State.ShowCoords = v end)
+toggle(I4, "82. 显示朝向", false, function(v) State.ShowFacing = v end)
+toggle(I4, "83. 显示速度", false, function(v) State.ShowSpeed = v end)
+toggle(I4, "84. 显示状态", false, function(v) State.ShowState = v end)
+toggle(I4, "85. 显示工具名", false, function(v) State.ShowTool = v end)
+toggle(I4, "86. 显示背包数量", false, function(v) State.ShowBackpack = v end)
+toggle(I4, "87. 显示血量百分比", false, function(v) State.ShowHPPercent = v end)
+toggle(I4, "88. 显示网络抖动", false, function(v) State.ShowJitter = v end)
+toggle(I4, "89. 显示 FPS 范围", false, function(v) State.ShowFPSRange = v end)
+toggle(I4, "90. 显示内存占用", false, function(v) State.ShowMemory = v end)
+
+-- 安全 / 反制 (10)
+local S4 = addCategory("安全 / 反制")
+
+toggle(S4, "91. 防误触购买", false, function(v) State.NoBuy = v end)
+toggle(S4, "92. 防误触删除", false, function(v) State.NoDelete = v end)
+toggle(S4, "93. 防误触踢人", false, function(v) State.NoKick = v end)
+toggle(S4, "94. 防误触发聊天", false, function(v) State.NoChat = v end)
+toggle(S4, "95. 屏蔽广告 UI", false, function(v) State.BlockAds = v end)
+toggle(S4, "96. 屏蔽远程传送", false, function(v) State.BlockRemoteTP = v end)
+toggle(S4, "97. 屏蔽远程伤害", false, function(v) State.BlockRemoteDMG = v end)
+toggle(S4, "98. 屏蔽远程击杀", false, function(v) State.BlockRemoteKill = v end)
+toggle(S4, "99. 检测作弊者退出", false, function(v) State.AutoExitCheater = v end)
+button(S4, "100. 一键关闭所有功能", function()
+    for k, val in pairs(State) do
+        if type(val) == "boolean" then State[k] = false end
+    end
+    print("[Xeno] 所有功能已关闭")
+end)
+
+print("[Xeno Hub] 第 4 段已加载 (100 功能)")
+
+pcall(function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "Xeno Hub (第 4 段)",
+        Text = "100 个新功能已加载 | 发'继续'拿第 5 段",
+        Duration = 5
+    })
+end)

@@ -1,0 +1,543 @@
+-- ======================================================
+-- XENO HUB v9.0 - 第 3 段 / 共 6 段
+-- 接第 2 段末尾执行
+-- ======================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local Debris = game:GetService("Debris")
+local StarterGui = game:GetService("StarterGui")
+local LocalPlayer = _G.XenoRefs.LocalPlayer
+local Camera = _G.XenoRefs.Camera
+local State = _G.XenoRefs.State
+local ScreenGui = _G.XenoRefs.ScreenGui
+local Theme = _G.XenoRefs.Theme
+local addCategory = _G.XenoRefs.addCategory
+local section = _G.XenoRefs.section
+local toggle = _G.XenoRefs.toggle
+local slider = _G.XenoRefs.slider
+local button = _G.XenoRefs.button
+local input = _G.XenoRefs.input
+local paragraph = _G.XenoRefs.paragraph
+local realTP = _G.XenoRefs.realTP
+
+print("[Xeno Hub] 第 3 段加载中...")
+
+-- 瞄准增强
+local AimP = addCategory("瞄准增强")
+
+section(AimP, "目标筛选")
+
+local aimBodyParts = {"Head", "HumanoidRootPart", "UpperTorso", "LowerTorso", "Torso"}
+input(AimP, "瞄准部位 (1-5)", "1=头 2=HRP 3=上躯 4=下躯 5=躯干", function(t)
+    local n = tonumber(t)
+    if n and aimBodyParts[n] then
+        State.SilentAimTarget = aimBodyParts[n]
+        print("[Xeno] 瞄准部位: " .. aimBodyParts[n])
+    end
+end)
+button(AimP, "→ 头", function() State.SilentAimTarget = "Head" end)
+button(AimP, "→ 躯干", function() State.SilentAimTarget = "UpperTorso" end)
+button(AimP, "→ 根部件", function() State.SilentAimTarget = "HumanoidRootPart" end)
+
+toggle(AimP, "忽略队友", true, function(v) State.IgnoreTeam = v end)
+toggle(AimP, "只锁活人 (血>0)", true, function(v) State.CheckHealth = v end)
+toggle(AimP, "限制瞄准距离", false, function(v) State.LimitAimDist = v end)
+slider(AimP, "最大瞄准距离", 50, 2000, 500, " studs", function(v) State.MaxAimDist = v end)
+toggle(AimP, "穿透检查 (只打可见目标)", false, function(v) State.WallCheck = v end)
+
+section(AimP, "FOV 圆自定义")
+button(AimP, "FOV 圈 → 红", function()
+    local fc = _G.XenoRefs.fovCircle
+    if fc then fc.Color = Color3.fromRGB(255, 0, 0) end
+end)
+button(AimP, "FOV 圈 → 绿", function()
+    local fc = _G.XenoRefs.fovCircle
+    if fc then fc.Color = Color3.fromRGB(0, 255, 0) end
+end)
+button(AimP, "FOV 圈 → 蓝", function()
+    local fc = _G.XenoRefs.fovCircle
+    if fc then fc.Color = Color3.fromRGB(0, 150, 255) end
+end)
+button(AimP, "FOV 圈 → 白", function()
+    local fc = _G.XenoRefs.fovCircle
+    if fc then fc.Color = Color3.fromRGB(255, 255, 255) end
+end)
+slider(AimP, "FOV 圈粗细", 1, 5, 1, " px", function(v)
+    local fc = _G.XenoRefs.fovCircle
+    if fc then fc.Thickness = v end
+end)
+
+-- 传送增强
+local TPP = addCategory("传送增强")
+
+section(TPP, "坐标传送")
+
+input(TPP, "X 坐标", "0", function(t) getgenv().tpX = tonumber(t) end)
+input(TPP, "Y 坐标", "50", function(t) getgenv().tpY = tonumber(t) end)
+input(TPP, "Z 坐标", "0", function(t) getgenv().tpZ = tonumber(t) end)
+button(TPP, "传送到坐标", function()
+    local x = getgenv().tpX or 0
+    local y = getgenv().tpY or 50
+    local z = getgenv().tpZ or 0
+    realTP(CFrame.new(x, y, z))
+    print("[Xeno] 传送到: " .. x .. ", " .. y .. ", " .. z)
+end)
+
+button(TPP, "传送到 0,50,0", function() realTP(CFrame.new(0, 50, 0)) end)
+button(TPP, "传送到 0,500,0 (高空)", function() realTP(CFrame.new(0, 500, 0)) end)
+button(TPP, "传送到 0,2000,0 (超高空)", function() realTP(CFrame.new(0, 2000, 0)) end)
+
+toggle(TPP, "中键点击传送", false, function(v)
+    getgenv().ClickTP = v
+    if v and not getgenv().ClickTPConn then
+        getgenv().ClickTPConn = UIS.InputBegan:Connect(function(i, gp)
+            if gp then return end
+            if i.UserInputType == Enum.UserInputType.MouseButton3 and getgenv().ClickTP then
+                local m = LocalPlayer:GetMouse()
+                realTP(CFrame.new(m.Hit.Position + Vector3.new(0, 3, 0)))
+            end
+        end)
+    end
+end)
+
+toggle(TPP, "右键点击传送", false, function(v) getgenv().RightClickTP = v end)
+UIS.InputBegan:Connect(function(i, gp)
+    if gp or not getgenv().RightClickTP then return end
+    if i.UserInputType == Enum.UserInputType.MouseButton2 then
+        local m = LocalPlayer:GetMouse()
+        realTP(CFrame.new(m.Hit.Position + Vector3.new(0, 3, 0)))
+    end
+end)
+
+section(TPP, "追踪玩家")
+input(TPP, "追踪玩家名", "输入名字", function(t) getgenv().TrackTarget = t end)
+toggle(TPP, "实时追踪指定玩家", false, function(v)
+    State.TrackPlayer = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.TrackPlayer then return end
+                    local p = Players:FindFirstChild(getgenv().TrackTarget or "")
+                    if p and p.Character and LocalPlayer.Character then
+                        local tHRP = p.Character:FindFirstChild("HumanoidRootPart")
+                        local myHRP = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if tHRP and myHRP then
+                            myHRP.CFrame = tHRP.CFrame * CFrame.new(0, 0, -5)
+                        end
+                    end
+                end)
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+toggle(TPP, "螺旋追踪 (绕圈)", false, function(v)
+    State.SpiralTrack = v
+    if v then
+        task.spawn(function()
+            local angle = 0
+            while true do
+                pcall(function()
+                    if not State.SpiralTrack then return end
+                    local p = Players:FindFirstChild(getgenv().TrackTarget or "")
+                    if p and p.Character and LocalPlayer.Character then
+                        local tHRP = p.Character:FindFirstChild("HumanoidRootPart")
+                        local myHRP = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if tHRP and myHRP then
+                            angle = angle + 0.1
+                            local offset = CFrame.new(math.cos(angle) * 8, 0, math.sin(angle) * 8)
+                            myHRP.CFrame = tHRP.CFrame * offset
+                        end
+                    end
+                end)
+                task.wait(0.05)
+            end
+        end)
+    end
+end)
+
+-- 掉落物 ESP
+local DropP = addCategory("掉落物 ESP")
+
+local dropHighlightEnabled = false
+local dropHighlights = {}
+task.spawn(function()
+    while true do
+        pcall(function()
+            if dropHighlightEnabled then
+                for _, obj in pairs(workspace:GetDescendants()) do
+                    if obj:IsA("BasePart") and not dropHighlights[obj] then
+                        local n = obj.Name:lower()
+                        local isDrop = false
+                        if n:find("chest") or n:find("coin") or n:find("gem") or n:find("cash")
+                           or n:find("drop") or n:find("loot") or n:find("reward")
+                           or n:find("crystal") or n:find("key") or n:find("box") then
+                            isDrop = true
+                        end
+                        if isDrop then
+                            local hl = Instance.new("Highlight")
+                            hl.Name = "XenoDropHL"
+                            hl.FillColor = Color3.fromRGB(255, 200, 0)
+                            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                            hl.FillTransparency = 0.5
+                            hl.Adornee = obj
+                            hl.Parent = obj
+                            dropHighlights[obj] = hl
+                        end
+                    end
+                end
+            else
+                for obj, hl in pairs(dropHighlights) do
+                    if hl and hl.Parent then hl:Destroy() end
+                end
+                dropHighlights = {}
+            end
+        end)
+        task.wait(2)
+    end
+end)
+toggle(DropP, "掉落物高亮 (箱子/金币/水晶)", false, function(v) dropHighlightEnabled = v end)
+
+local dropTexts = {}
+toggle(DropP, "掉落物显示距离", false, function(v)
+    State.DropDistance = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.DropDistance then return end
+                    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if not myRoot then return end
+                    for obj, hl in pairs(dropHighlights) do
+                        if hl and obj.Parent then
+                            if not dropTexts[obj] then
+                                local bb = Instance.new("BillboardGui")
+                                bb.Name = "XenoDropDist"
+                                bb.Size = UDim2.new(0, 100, 0, 20)
+                                bb.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
+                                bb.AlwaysOnTop = true
+                                bb.Parent = obj
+                                local lbl = Instance.new("TextLabel", bb)
+                                lbl.Size = UDim2.new(1, 0, 1, 0)
+                                lbl.BackgroundTransparency = 1
+                                lbl.TextColor3 = Color3.fromRGB(255, 200, 0)
+                                lbl.TextStrokeTransparency = 0
+                                lbl.Font = Enum.Font.GothamBold
+                                lbl.TextSize = 12
+                                dropTexts[obj] = lbl
+                            end
+                            local dist = (obj.Position - myRoot.Position).Magnitude
+                            dropTexts[obj].Text = math.floor(dist) .. " studs"
+                        end
+                    end
+                    for obj, lbl in pairs(dropTexts) do
+                        if not obj.Parent then
+                            if lbl.Parent then lbl.Parent:Destroy() end
+                            dropTexts[obj] = nil
+                        end
+                    end
+                end)
+                task.wait(0.2)
+            end
+        end)
+    end
+end)
+
+toggle(DropP, "自动捡掉落物 (传送)", false, function(v)
+    State.AutoTPDrop = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AutoTPDrop then return end
+                    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if myRoot then
+                        for obj in pairs(dropHighlights) do
+                            if obj.Parent and (obj.Position - myRoot.Position).Magnitude < 500 then
+                                realTP(CFrame.new(obj.Position + Vector3.new(0, 3, 0)))
+                                task.wait(0.3)
+                                break
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+
+-- 玩家雷达
+local RadarP = addCategory("玩家雷达")
+
+local radarEnabled = false
+local radarFrame = Instance.new("Frame")
+radarFrame.Size = UDim2.new(0, 200, 0, 200)
+radarFrame.Position = UDim2.new(1, -220, 0, 100)
+radarFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+radarFrame.BackgroundTransparency = 0.5
+radarFrame.BorderSizePixel = 1
+radarFrame.BorderColor3 = Color3.fromRGB(90, 150, 255)
+radarFrame.Visible = false
+radarFrame.Parent = ScreenGui
+Instance.new("UICorner", radarFrame).CornerRadius = UDim.new(0, 8)
+
+local radarDots = {}
+task.spawn(function()
+    while true do
+        pcall(function()
+            if radarEnabled then
+                radarFrame.Visible = true
+                local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if not myRoot then return end
+                local myPos = myRoot.Position
+                local myAngle = math.atan2(-Camera.CFrame.LookVector.X, -Camera.CFrame.LookVector.Z)
+                for _, p in pairs(Players:GetPlayers()) do
+                    if p == LocalPlayer then continue end
+                    local hrp = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                    if not hrp then
+                        if radarDots[p] then radarDots[p]:Destroy(); radarDots[p] = nil end
+                        continue
+                    end
+                    local rel = hrp.Position - myPos
+                    local dist = math.sqrt(rel.X^2 + rel.Z^2)
+                    if dist > 300 then
+                        if radarDots[p] then radarDots[p].Visible = false end
+                        continue
+                    end
+                    local angle = math.atan2(rel.X, rel.Z) - myAngle
+                    local x = math.sin(angle) * (dist / 300) * 90 + 100
+                    local y = math.cos(angle) * (dist / 300) * 90 + 100
+                    if not radarDots[p] then
+                        local dot = Instance.new("Frame")
+                        dot.Size = UDim2.new(0, 6, 0, 6)
+                        dot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+                        dot.BorderSizePixel = 0
+                        dot.Parent = radarFrame
+                        Instance.new("UICorner", dot).CornerRadius = UDim.new(0, 3)
+                        radarDots[p] = dot
+                    end
+                    radarDots[p].Position = UDim2.new(0, x - 3, 0, y - 3)
+                    radarDots[p].Visible = true
+                end
+            else
+                radarFrame.Visible = false
+                for p, dot in pairs(radarDots) do
+                    dot:Destroy()
+                end
+                radarDots = {}
+            end
+        end)
+        task.wait(0.1)
+    end
+end)
+toggle(RadarP, "玩家雷达 (200x200)", false, function(v) radarEnabled = v end)
+
+-- 自动操作
+local AutoP = addCategory("自动操作")
+
+toggle(AutoP, "自动点击 UI 按钮 (按名字)", false, function(v)
+    State.AutoClickUI = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AutoClickUI then return end
+                    local target = getgenv().UIClickKeyword
+                    if target and target ~= "" then
+                        local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+                        if pg then
+                            for _, obj in pairs(pg:GetDescendants()) do
+                                if obj:IsA("GuiButton") and obj.Name:lower():find(target:lower()) then
+                                    pcall(function() obj.MouseButton1Click:Fire() end)
+                                end
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+input(AutoP, "按钮名字关键词", "Claim", function(t) getgenv().UIClickKeyword = t end)
+
+toggle(AutoP, "自动接受传送邀请", false, function(v)
+    State.AutoAcceptTP = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AutoAcceptTP then return end
+                    local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+                    if pg then
+                        for _, obj in pairs(pg:GetDescendants()) do
+                            if obj:IsA("TextButton") then
+                                local txt = obj.Text:lower()
+                                if txt:find("accept") or txt:find("yes") or txt:find("teleport") then
+                                    pcall(function() obj.MouseButton1Click:Fire() end)
+                                end
+                            end
+                        end
+                    end
+                end)
+                task.wait(1)
+            end
+        end)
+    end
+end)
+
+toggle(AutoP, "自动点击 Buy/Purchase 按钮", false, function(v)
+    State.AutoBuy = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AutoBuy then return end
+                    local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+                    if pg then
+                        for _, obj in pairs(pg:GetDescendants()) do
+                            if obj:IsA("TextButton") then
+                                local txt = obj.Text:lower()
+                                if txt == "buy" or txt == "purchase" or txt:find("confirm") then
+                                    pcall(function() obj.MouseButton1Click:Fire() end)
+                                end
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+
+-- 玩家互动
+local IntP = addCategory("玩家互动")
+
+toggle(IntP, "自动跟随 (保持距离)", false, function(v)
+    State.AutoFollowPlayer = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AutoFollowPlayer then return end
+                    local p = Players:FindFirstChild(getgenv().FollowPlayerName or "")
+                    if p and p.Character and LocalPlayer.Character then
+                        local tHRP = p.Character:FindFirstChild("HumanoidRootPart")
+                        local myHRP = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                        if tHRP and myHRP and hum then
+                            local dist = (tHRP.Position - myHRP.Position).Magnitude
+                            if dist > 15 then
+                                hum:MoveTo(tHRP.Position)
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.3)
+            end
+        end)
+    end
+end)
+input(IntP, "跟随玩家名", "输入名字", function(t) getgenv().FollowPlayerName = t end)
+
+input(IntP, "假消息内容", "你被踢出了", function(t) getgenv().FakeMsgText = t end)
+button(IntP, "发送假系统通知 (本地)", function()
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = "系统",
+            Text = getgenv().FakeMsgText or "你被踢出了",
+            Duration = 5
+        })
+    end)
+end)
+button(IntP, "发送假踢出消息 (本地)", function()
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = "踢出",
+            Text = "你已被服务器踢出: Exploiting",
+            Duration = 5
+        })
+    end)
+end)
+
+-- 显示增强
+local UIP = addCategory("显示增强")
+
+local keyBindLbl = Instance.new("TextLabel")
+keyBindLbl.Size = UDim2.new(0, 220, 0, 130)
+keyBindLbl.Position = UDim2.new(0, 10, 0, 200)
+keyBindLbl.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+keyBindLbl.BackgroundTransparency = 0.5
+keyBindLbl.TextColor3 = Color3.fromRGB(230, 230, 240)
+keyBindLbl.Font = Enum.Font.Code
+keyBindLbl.TextSize = 11
+keyBindLbl.TextXAlignment = Enum.TextXAlignment.Left
+keyBindLbl.TextYAlignment = Enum.TextYAlignment.Top
+keyBindLbl.Text = "快捷键:\nK - 菜单\nY - 控制台\nF4 - Freecam\nE - 冲刺\nHome - 传送回家\nEnd - 紧急逃跑\nLeftAlt - 速度爆发\n中键 - 点击传送"
+keyBindLbl.Parent = ScreenGui
+toggle(UIP, "显示快捷键面板", false, function(v) keyBindLbl.Visible = v end)
+
+local statusBar = Instance.new("Frame")
+statusBar.Size = UDim2.new(1, 0, 0, 20)
+statusBar.Position = UDim2.new(0, 0, 0, 0)
+statusBar.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+statusBar.BackgroundTransparency = 0.5
+statusBar.Visible = false
+statusBar.Parent = ScreenGui
+local statusLbl = Instance.new("TextLabel", statusBar)
+statusLbl.Size = UDim2.new(1, -10, 1, 0)
+statusLbl.Position = UDim2.new(0, 5, 0, 0)
+statusLbl.BackgroundTransparency = 1
+statusLbl.TextColor3 = Color3.fromRGB(230, 230, 240)
+statusLbl.Font = Enum.Font.Code
+statusLbl.TextSize = 12
+statusLbl.TextXAlignment = Enum.TextXAlignment.Left
+task.spawn(function()
+    while true do
+        pcall(function()
+            if statusBar.Visible then
+                local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                local ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue())
+                local hp = hum and math.floor(hum.Health) or 0
+                local maxHp = hum and math.floor(hum.MaxHealth) or 100
+                statusLbl.Text = string.format("HP: %d/%d | Ping: %dms | 玩家: %d", hp, maxHp, ping, #Players:GetPlayers())
+            end
+        end)
+        task.wait(1)
+    end
+end)
+toggle(UIP, "顶部状态栏", false, function(v) statusBar.Visible = v end)
+
+local crosshair = Instance.new("Frame")
+crosshair.Size = UDim2.new(0, 20, 0, 20)
+crosshair.Position = UDim2.new(0.5, -10, 0.5, -10)
+crosshair.BackgroundTransparency = 1
+crosshair.Visible = false
+crosshair.Parent = ScreenGui
+local crossV = Instance.new("Frame", crosshair)
+crossV.Size = UDim2.new(0, 2, 1, 0)
+crossV.Position = UDim2.new(0.5, -1, 0, 0)
+crossV.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+crossV.BorderSizePixel = 0
+local crossH = Instance.new("Frame", crosshair)
+crossH.Size = UDim2.new(1, 0, 0, 2)
+crossH.Position = UDim2.new(0, 0, 0.5, -1)
+crossH.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+crossH.BorderSizePixel = 0
+toggle(UIP, "准星显示", false, function(v) crosshair.Visible = v end)
+
+print("[Xeno Hub] 第 3 段已加载")
+
+pcall(function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "Xeno Hub (第 3 段)",
+        Text = "第 3 段扩展包已加载 | 发'继续'拿第 4 段",
+        Duration = 5
+    })
+end)

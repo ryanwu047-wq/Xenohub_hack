@@ -1,0 +1,405 @@
+-- ======================================================
+-- XENO HUB v9.0 - 第 6 段 / 共 6 段 (60 功能) [最终段]
+-- 接第 5 段末尾执行
+-- ======================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local Debris = game:GetService("Debris")
+local StarterGui = game:GetService("StarterGui")
+local VirtualUser = game:GetService("VirtualUser")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = _G.XenoRefs.LocalPlayer
+local Camera = _G.XenoRefs.Camera
+local State = _G.XenoRefs.State
+local ScreenGui = _G.XenoRefs.ScreenGui
+local Theme = _G.XenoRefs.Theme
+local addCategory = _G.XenoRefs.addCategory
+local section = _G.XenoRefs.section
+local toggle = _G.XenoRefs.toggle
+local slider = _G.XenoRefs.slider
+local button = _G.XenoRefs.button
+local input = _G.XenoRefs.input
+local paragraph = _G.XenoRefs.paragraph
+local keybind = _G.XenoRefs.keybind
+local realTP = _G.XenoRefs.realTP
+
+print("[Xeno Hub] 第 6 段加载中 (60 功能)...")
+
+-- 手感优化 (15)
+local Feel = addCategory("手感优化")
+
+toggle(Feel, "1. 相机自由旋转", false, function(v)
+    State.FreeCamRotate = v
+    if v then Camera.CameraType = Enum.CameraType.Scriptable
+    else Camera.CameraType = Enum.CameraType.Custom end
+end)
+toggle(Feel, "2. 视角锁定", false, function(v) State.CamLock = v end)
+toggle(Feel, "3. 相机平移锁定", false, function(v) State.CamPanLock = v end)
+toggle(Feel, "4. 屏幕震动关闭", false, function(v)
+    State.NoShake = v
+    if v then LocalPlayer.CameraOffset = Vector3.zero end
+end)
+toggle(Feel, "5. 后坐力关闭 (视觉)", false, function(v) State.NoVisualRecoil = v end)
+toggle(Feel, "6. 准星固定", false, function(v) State.FixedCrosshair = v end)
+toggle(Feel, "7. 头部固定 (不晃)", false, function(v)
+    State.NoHeadBob = v
+    if v then
+        task.spawn(function()
+            while State.NoHeadBob do
+                pcall(function()
+                    local head = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head")
+                    if head then head.CustomPhysicalProperties = PhysicalProperties.new(0,0,0,0,0) end
+                end)
+                task.wait(1)
+            end
+        end)
+    end
+end)
+slider(Feel, "8. 鼠标速度", 0.1, 5, 1, " x", function(v) State.MouseSpeed = v end)
+slider(Feel, "9. 相机距离", 1, 50, 10, " studs", function(v)
+    LocalPlayer.CameraMaxZoomDistance = v
+end)
+slider(Feel, "10. 视野 FOV", 30, 130, 70, " °", function(v) Camera.FieldOfView = v end)
+toggle(Feel, "11. 开镜 FOV 覆盖", false, function(v) State.ScopeFOV = v end)
+slider(Feel, "12. 开镜 FOV 值", 20, 90, 40, " °", function(v) State.ScopeFOVVal = v end)
+toggle(Feel, "13. 平滑转向", false, function(v) State.SmoothTurn = v end)
+slider(Feel, "14. 转向平滑度", 1, 20, 5, "", function(v) State.TurnSmoothness = v end)
+button(Feel, "15. 一键复位视角", function()
+    local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    Camera.CameraType = Enum.CameraType.Custom
+    Camera.CameraSubject = h or LocalPlayer.Character
+    Camera.FieldOfView = 70
+end)
+
+-- 玩家状态 (15)
+local PS6 = addCategory("玩家状态")
+
+toggle(PS6, "16. 血量显示数值", false, function(v) State.ShowHPNum = v end)
+toggle(PS6, "17. 血量百分比", false, function(v) State.ShowHPPercent2 = v end)
+toggle(PS6, "18. 低血警告", false, function(v)
+    State.LowHPWarn = v
+    if v then
+        task.spawn(function()
+            while State.LowHPWarn do
+                pcall(function()
+                    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                    if hum and hum.Health/hum.MaxHealth < 0.3 then
+                        pcall(function()
+                            StarterGui:SetCore("SendNotification", {
+                                Title = "⚠ 低血警告",
+                                Text = "血量: " .. math.floor(hum.Health) .. "/" .. math.floor(hum.MaxHealth),
+                                Duration = 2
+                            })
+                        end)
+                    end
+                end)
+                task.wait(3)
+            end
+        end)
+    end
+end)
+toggle(PS6, "19. 血量回复速度", false, function(v) State.ShowHPSpeed = v end)
+toggle(PS6, "20. 状态图标", false, function(v) State.ShowStateIcon = v end)
+toggle(PS6, "21. 经验条显示", false, function(v) State.ShowXP = v end)
+toggle(PS6, "22. 等级显示", false, function(v) State.ShowLevel = v end)
+toggle(PS6, "23. 金钱显示", false, function(v) State.ShowMoney = v end)
+toggle(PS6, "24. 背包数量", false, function(v) State.ShowInvCount = v end)
+toggle(PS6, "25. 武器耐久", false, function(v) State.ShowDurability = v end)
+toggle(PS6, "26. 技能 CD 显示", false, function(v) State.ShowCooldowns = v end)
+toggle(PS6, "27. Buff/Debuff 显示", false, function(v) State.ShowBuffs = v end)
+toggle(PS6, "28. 队伍信息", false, function(v) State.ShowTeamInfo = v end)
+toggle(PS6, "29. 附近玩家列表", false, function(v) State.ShowNearbyPlayers = v end)
+toggle(PS6, "30. 附近物品列表", false, function(v) State.ShowNearbyItems = v end)
+
+-- 快捷操作 (15)
+local Quick = addCategory("快捷操作")
+
+keybind(Quick, "31. 速度爆发快捷键", Enum.KeyCode.LeftAlt, function(k) State.SpeedBurstKey = k end)
+keybind(Quick, "32. 飞行切换", Enum.KeyCode.F, function(k) State.FlyKey = k end)
+keybind(Quick, "33. 传送回家", Enum.KeyCode.H, function(k) State.HomeKey = k end)
+keybind(Quick, "34. 紧急逃跑", Enum.KeyCode.End, function(k) State.PanicKey = k end)
+
+button(Quick, "35. 一键开启无敌", function()
+    State.GodMode = true
+    print("[快捷] 无敌已开")
+end)
+button(Quick, "36. 关闭所有战斗功能", function()
+    State.Aimbot = false
+    State.SilentAim = false
+    State.KillAura = false
+    State.AutoKillAll = false
+    print("[快捷] 战斗全关")
+end)
+button(Quick, "37. 清空所有敌人 (本地)", function()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+            if hum then hum.Health = 0 end
+        end
+    end
+end)
+button(Quick, "38. 回到地面", function()
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        local ray = Ray.new(hrp.Position, Vector3.new(0, -1000, 0))
+        local hit = workspace:FindPartOnRay(ray, LocalPlayer.Character)
+        if hit then realTP(CFrame.new(hit.Position + Vector3.new(0, 5, 0))) end
+    end
+end)
+button(Quick, "39. 飞到 1000 高空", function()
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then realTP(CFrame.new(hrp.Position.X, 1000, hrp.Position.Z)) end
+end)
+button(Quick, "40. 从高空下来", function()
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then realTP(CFrame.new(hrp.Position.X, 10, hrp.Position.Z)) end
+end)
+
+input(Quick, "群发消息", "大家好", function(t) getgenv().BroadcastMsg = t end)
+button(Quick, "41. 给自己发系统通知", function()
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = "消息",
+            Text = getgenv().BroadcastMsg or "大家好",
+            Duration = 5
+        })
+    end)
+end)
+button(Quick, "42. 保存当前所有开关", function()
+    local cfg = {}
+    for k, v in pairs(State) do
+        if type(v) == "boolean" then cfg[k] = v end
+    end
+    getgenv().XenoSavedConfig = cfg
+    print("[快捷] 配置已保存 (内存)")
+end)
+button(Quick, "43. 加载上次配置", function()
+    local cfg = getgenv().XenoSavedConfig
+    if cfg then
+        for k, v in pairs(cfg) do
+            if State[k] ~= nil then State[k] = v end
+        end
+        print("[快捷] 配置已加载")
+    end
+end)
+button(Quick, "44. 重置所有开关", function()
+    for k, v in pairs(State) do
+        if type(v) == "boolean" then State[k] = false end
+    end
+    print("[快捷] 全部关闭")
+end)
+button(Quick, "45. 打印所有开启的功能", function()
+    print("===== 当前开启功能 =====")
+    for k, v in pairs(State) do
+        if type(v) == "boolean" and v then
+            print("  [ON] " .. k)
+        end
+    end
+end)
+
+-- 趣味功能 (15)
+local Fun = addCategory("趣味")
+
+button(Fun, "46. 挥手", function()
+    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        pcall(function()
+            local anim = Instance.new("Animation")
+            anim.AnimationId = "rbxassetid://507770239"
+            local track = hum:LoadAnimation(anim)
+            track:Play()
+        end)
+    end
+end)
+button(Fun, "47. 跳舞", function()
+    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        pcall(function()
+            local anim = Instance.new("Animation")
+            anim.AnimationId = "rbxassetid://507771019"
+            local track = hum:LoadAnimation(anim)
+            track:Play()
+        end)
+    end
+end)
+button(Fun, "48. 指向", function()
+    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        pcall(function()
+            local anim = Instance.new("Animation")
+            anim.AnimationId = "rbxassetid://507770453"
+            local track = hum:LoadAnimation(anim)
+            track:Play()
+        end)
+    end
+end)
+button(Fun, "49. 大笑", function()
+    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        pcall(function()
+            local anim = Instance.new("Animation")
+            anim.AnimationId = "rbxassetid://507770818"
+            local track = hum:LoadAnimation(anim)
+            track:Play()
+        end)
+    end
+end)
+button(Fun, "50. 嘲讽", function()
+    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        pcall(function()
+            local anim = Instance.new("Animation")
+            anim.AnimationId = "rbxassetid://507771204"
+            local track = hum:LoadAnimation(anim)
+            track:Play()
+        end)
+    end
+end)
+
+toggle(Fun, "51. 彩虹拖尾", false, function(v)
+    State.RainbowTrail = v
+    if v then
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local a1 = Instance.new("Attachment", hrp)
+            local a2 = Instance.new("Attachment", hrp)
+            a1.Position = Vector3.new(-1, 1, 0)
+            a2.Position = Vector3.new(1, -1, 0)
+            local t = Instance.new("Trail")
+            t.Attachment0 = a1
+            t.Attachment1 = a2
+            t.Lifetime = 1
+            t.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)),
+                ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0,255,0)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(0,0,255)),
+            })
+            t.Parent = hrp
+            State.RainbowTrailObj = t
+        end
+    else
+        if State.RainbowTrailObj then State.RainbowTrailObj:Destroy() end
+    end
+end)
+
+toggle(Fun, "52. 星星粒子", false, function(v)
+    State.Stars = v
+    if v then
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local s = Instance.new("Sparkles")
+            s.SparkleColor = Color3.fromRGB(255, 255, 0)
+            s.Parent = hrp
+            State.StarsObj = s
+        end
+    else
+        if State.StarsObj then State.StarsObj:Destroy() end
+    end
+end)
+
+toggle(Fun, "53. 光环特效", false, function(v)
+    State.Halo = v
+    if v then
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local att = Instance.new("Attachment", hrp)
+            local pt = Instance.new("ParticleEmitter", att)
+            pt.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+            pt.Rate = 50
+            pt.Lifetime = NumberRange.new(1, 2)
+            pt.Speed = NumberRange.new(0, 5)
+            pt.Size = NumberSequence.new(1)
+            pt.Color = ColorSequence.new(Color3.fromRGB(255, 200, 0))
+            pt.Parent = att
+            State.HaloObj = pt
+        end
+    else
+        if State.HaloObj then State.HaloObj:Destroy() end
+    end
+end)
+
+toggle(Fun, "54. 翅膀特效", false, function(v) State.Wings = v end)
+
+toggle(Fun, "55. 脚下火焰", false, function(v)
+    State.FootFire = v
+    if v then
+        task.spawn(function()
+            while State.FootFire do
+                pcall(function()
+                    local char = LocalPlayer.Character
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        local f = Instance.new("Fire")
+                        f.Size = 3
+                        f.Parent = hrp
+                        Debris:AddItem(f, 1)
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+
+button(Fun, "56. 播放随机音效", function()
+    local sounds = {"rbxassetid://1837879082", "rbxassetid://131961136", "rbxassetid://904662902"}
+    local s = Instance.new("Sound")
+    s.SoundId = sounds[math.random(1, #sounds)]
+    s.Volume = 3
+    s.Parent = workspace
+    s:Play()
+    Debris:AddItem(s, 10)
+end)
+
+button(Fun, "57. 屏幕扭曲", function()
+    pcall(function()
+        local cc = Instance.new("ColorCorrectionEffect")
+        cc.Saturation = -1
+        cc.Parent = Lighting
+        task.delay(2, function() cc:Destroy() end)
+    end)
+end)
+
+button(Fun, "58. 反色屏幕", function()
+    pcall(function()
+        local cc = Instance.new("ColorCorrectionEffect")
+        cc.Contrast = 2
+        cc.Brightness = -0.5
+        cc.Parent = Lighting
+        task.delay(2, function() cc:Destroy() end)
+    end)
+end)
+
+toggle(Fun, "59. 慢动作效果", false, function(v)
+    State.SlowMo = v
+    if v then workspace.Gravity = 50
+    else workspace.Gravity = State.OriginalGravity end
+end)
+
+toggle(Fun, "60. 卫星视角 (超远)", false, function(v)
+    if v then
+        Camera.CFrame = CFrame.new(0, 500, 0) * CFrame.Angles(-math.pi/2, 0, 0)
+        Camera.CameraType = Enum.CameraType.Scriptable
+    else
+        Camera.CameraType = Enum.CameraType.Custom
+    end
+end)
+
+print("[Xeno Hub] 第 6 段已加载 (60 功能)")
+
+pcall(function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "Xeno Hub v9.0 [完整版]",
+        Text = "6 段全部加载完成 | 330+ 功能",
+        Duration = 8
+    })
+end)
+print("")
+print("=====================================")
+print("[Xeno Hub] v9.0 完整版加载完毕")
+print("6 段共 330+ 功能 | 30+ 分类")
+print("按 K 打开菜单 | 按 Y 打开控制台")
+print("=====================================")

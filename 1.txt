@@ -1,0 +1,1283 @@
+-- ======================================================
+-- XENO HUB v9.0 - 第 1 段 / 共 6 段
+-- 作者: Deepseek | 执行器: Xeno
+-- 执行方式: 6 段分别执行, 共用 1 个 GUI
+-- ======================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local SoundService = game:GetService("SoundService")
+local StarterGui = game:GetService("StarterGui")
+local Debris = game:GetService("Debris")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local VirtualUser = game:GetService("VirtualUser")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local State = {
+    UIToggleKey = Enum.KeyCode.K,
+    ConsoleKey = Enum.KeyCode.Y,
+    Aimbot=false, LockHead=false, Smoothness=8, FOV=300,
+    SilentAim=false, SilentAimFOV=200, SilentAimHitChance=100, SilentAimTarget="Head",
+    Hitbox=false, HitboxScale=3,
+    KillAura=false, KillAuraRange=15,
+    AutoKillAll=false, AutoDodge=false, DodgeRange=50,
+    GodMode=false, SuperGodMode=false,
+    AntiKnockback=false, AntiFreeze=false, AntiTeleport=false,
+    AntiVoid=false, AntiRagdoll=false, AntiFling=false, AutoRespawn=false,
+    FakeHealth=false,
+    Speed=16, Jump=50, InfJump=false,
+    AutoJump=false, BhopMode=false, DoubleJump=false,
+    Noclip=false, NoclipRay=true, NoclipFast=false,
+    Fly=false, Frozen=false,
+    Freecam=false, SpinSelf=false,
+    DashEnabled=false, DashRange=50,
+    WallClimb=false, AutoWalk=false,
+    ESP_Player=false, ESP_Name=false, ESP_Health=false, ESP_Distance=false,
+    ESP_Color=Color3.fromRGB(255, 100, 100),
+    ESP_Box=false, ESP_Skeleton=false,
+    FullBright=false, NoFog=false,
+    FPSCounter=false, PingDisplay=false,
+    FPSBoost=false, LowGraphics=false,
+    OriginalGravity=workspace.Gravity,
+    OriginalFogEnd=Lighting.FogEnd,
+    OriginalBrightness=Lighting.Brightness,
+    OriginalClock=Lighting.ClockTime,
+    OriginalAmbient=Lighting.Ambient,
+    OriginalOutdoor=Lighting.OutdoorAmbient,
+    RealTPMethod="cframe",
+    SavedPositions={},
+    AntiAFK=false, AutoClicker=false, AutoClickDelay=0.1,
+    AutoPickTool=false, AutoOpenChest=false,
+    BringAllPlayers=false, BringItems=false,
+    AutoChat=false,
+    ShowServerInfo=false, ShowTimer=false,
+    UseMeters=false,
+    SpinNoCamera=false, SpinSpeed=15,
+    Invisible=false, GhostMode=false, HeadlessMode=false,
+    GiantMode=false, TinyMode=false, BlockyMode=false,
+    RainbowChar=false, NeonChar=false,
+    XrayMode=false, NameTagsOff=false,
+    ThirdPersonFar=false, FirstPersonLock=false,
+    FOVBoost=false, NoParticles=false, NoTextures=false,
+    InfiniteAmmo=false, RapidFire=false, NoRecoil=false,
+    NoSpread=false, AutoReload=false,
+    ZeroGravity=false, MoonJump=false, Ragdoll=false,
+    TimeFrozen=false, TimeFast=false,
+    AllRainbow=false, AllNeon=false, AllTiny=false,
+    AllUpsideDown=false, AllSpinning=false, AllOnFire=false,
+}
+local flyConfig = {Speed=60, VerticalSpeed=40, Smoothness=8, Noclip=true, God=false}
+local spinSpeed = 15
+
+-- 挂 GUI（只创建一次）
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "XenoHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.DisplayOrder = 999999
+local mounted = false
+pcall(function() ScreenGui.Parent = game:GetService("CoreGui"); mounted = true end)
+if not mounted then
+    local pg = LocalPlayer:WaitForChild("PlayerGui", 5)
+    if pg then ScreenGui.Parent = pg; mounted = true end
+end
+if not mounted then warn("[Xeno] GUI 挂载失败"); return end
+print("[Xeno] GUI 已挂载")
+
+pcall(function()
+    if hookmetamethod then
+        local old
+        old = hookmetamethod(game, "__namecall", function(self, ...)
+            if getnamecallmethod() == "Kick" and self == LocalPlayer then return end
+            if State.SuperGodMode then
+                local m = getnamecallmethod()
+                if (m == "TakeDamage" or m == "TakeDamageAsync")
+                   and self and typeof(self) == "Instance"
+                   and self:IsA("Humanoid")
+                   and self.Parent == LocalPlayer.Character then
+                    return 0
+                end
+            end
+            return old(self, ...)
+        end)
+    end
+end)
+
+local function realTP(targetCF, method)
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum then return end
+    method = method or State.RealTPMethod
+    if method == "cframe" then
+        hrp.CFrame = targetCF
+        pcall(function() hrp.AssemblyLinearVelocity = Vector3.zero end)
+    elseif method == "velocity" then
+        local dir = targetCF.Position - hrp.Position
+        if dir.Magnitude < 1 then hrp.CFrame = targetCF
+        else pcall(function() hrp.AssemblyLinearVelocity = dir.Unit * math.min(dir.Magnitude * 5, 1000) end) end
+    elseif method == "moveto" then
+        hum:MoveTo(targetCF.Position)
+    end
+end
+local function tpToPlayer(plr)
+    if not plr or not plr.Character then return end
+    local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then realTP(hrp.CFrame * CFrame.new(0, 0, -3)) end
+end
+
+local Theme = {
+    BG=Color3.fromRGB(18,18,24), Sidebar=Color3.fromRGB(24,24,32),
+    Panel=Color3.fromRGB(30,30,40), Element=Color3.fromRGB(40,40,52),
+    Accent=Color3.fromRGB(90,150,255), Text=Color3.fromRGB(230,230,240),
+    Sub=Color3.fromRGB(150,150,170), Green=Color3.fromRGB(80,220,130),
+    Red=Color3.fromRGB(255,90,90), Yellow=Color3.fromRGB(255,200,80),
+    Font=Enum.Font.Gotham, FontBold=Enum.Font.GothamBold, FontCode=Enum.Font.Code,
+}
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 720, 0, 480)
+Main.Position = UDim2.new(0.5, -360, 0.5, -240)
+Main.BackgroundColor3 = Theme.BG
+Main.BorderSizePixel = 0
+Main.Active = true
+Main.Draggable = true
+Main.Parent = ScreenGui
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
+local mStroke = Instance.new("UIStroke", Main)
+mStroke.Color = Color3.fromRGB(50, 50, 65)
+
+local Top = Instance.new("Frame")
+Top.Size = UDim2.new(1, 0, 0, 36)
+Top.BackgroundColor3 = Theme.Sidebar
+Top.BorderSizePixel = 0
+Top.Parent = Main
+Instance.new("UICorner", Top).CornerRadius = UDim.new(0, 10)
+local TopFix = Instance.new("Frame")
+TopFix.Size = UDim2.new(1, 0, 0, 10)
+TopFix.Position = UDim2.new(0, 0, 1, -10)
+TopFix.BackgroundColor3 = Theme.Sidebar
+TopFix.BorderSizePixel = 0
+TopFix.Parent = Top
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(0.5, 0, 1, 0)
+Title.Position = UDim2.new(0, 14, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "XENO HUB  v9.0"
+Title.TextColor3 = Theme.Text
+Title.Font = Theme.FontBold
+Title.TextSize = 14
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Top
+
+local AuthorLbl = Instance.new("TextLabel")
+AuthorLbl.Size = UDim2.new(0.5, -100, 1, 0)
+AuthorLbl.Position = UDim2.new(0.5, 0, 0, 0)
+AuthorLbl.BackgroundTransparency = 1
+AuthorLbl.Text = "by Deepseek"
+AuthorLbl.TextColor3 = Theme.Sub
+AuthorLbl.Font = Theme.Font
+AuthorLbl.TextSize = 12
+AuthorLbl.TextXAlignment = Enum.TextXAlignment.Right
+AuthorLbl.Parent = Top
+
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Size = UDim2.new(0, 28, 0, 28)
+MinimizeBtn.Position = UDim2.new(1, -64, 0, 4)
+MinimizeBtn.BackgroundColor3 = Theme.Element
+MinimizeBtn.Text = "—"
+MinimizeBtn.TextColor3 = Theme.Text
+MinimizeBtn.Font = Theme.FontBold
+MinimizeBtn.TextSize = 14
+MinimizeBtn.BorderSizePixel = 0
+MinimizeBtn.Parent = Top
+Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 6)
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 28, 0, 28)
+CloseBtn.Position = UDim2.new(1, -32, 0, 4)
+CloseBtn.BackgroundColor3 = Theme.Element
+CloseBtn.Text = "✕"
+CloseBtn.TextColor3 = Theme.Text
+CloseBtn.Font = Theme.FontBold
+CloseBtn.TextSize = 14
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Parent = Top
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
+
+CloseBtn.MouseButton1Click:Connect(function() Main.Visible = false end)
+MinimizeBtn.MouseButton1Click:Connect(function()
+    if Main.Size.Y.Offset == 480 then
+        Main.Size = UDim2.new(0, 720, 0, 36)
+        Sidebar.Visible = false
+        ContentWrap.Visible = false
+    else
+        Main.Size = UDim2.new(0, 720, 0, 480)
+        Sidebar.Visible = true
+        ContentWrap.Visible = true
+    end
+end)
+
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 150, 1, -46)
+Sidebar.Position = UDim2.new(0, 10, 0, 42)
+Sidebar.BackgroundColor3 = Theme.Sidebar
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = Main
+Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 8)
+
+local SideScroll = Instance.new("ScrollingFrame")
+SideScroll.Size = UDim2.new(1, 0, 1, 0)
+SideScroll.BackgroundTransparency = 1
+SideScroll.BorderSizePixel = 0
+SideScroll.ScrollBarThickness = 3
+SideScroll.ScrollBarImageColor3 = Theme.Accent
+SideScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+SideScroll.Parent = Sidebar
+local SideLayout = Instance.new("UIListLayout", SideScroll)
+SideLayout.Padding = UDim.new(0, 3)
+SideLayout.SortOrder = Enum.SortOrder.LayoutOrder
+local SidePad = Instance.new("UIPadding", SideScroll)
+SidePad.PaddingTop = UDim.new(0, 6)
+SidePad.PaddingLeft = UDim.new(0, 6)
+SidePad.PaddingRight = UDim.new(0, 6)
+SidePad.PaddingBottom = UDim.new(0, 6)
+
+local ContentWrap = Instance.new("Frame")
+ContentWrap.Size = UDim2.new(1, -170, 1, -46)
+ContentWrap.Position = UDim2.new(0, 165, 0, 42)
+ContentWrap.BackgroundColor3 = Theme.Sidebar
+ContentWrap.BorderSizePixel = 0
+ContentWrap.Parent = Main
+Instance.new("UICorner", ContentWrap).CornerRadius = UDim.new(0, 8)
+
+local function newCorner(p, r) local c = Instance.new("UICorner", p) c.CornerRadius = UDim.new(0, r or 6) return c end
+
+local function newPage()
+    local s = Instance.new("ScrollingFrame")
+    s.Size = UDim2.new(1, -12, 1, -12)
+    s.Position = UDim2.new(0, 6, 0, 6)
+    s.BackgroundTransparency = 1
+    s.BorderSizePixel = 0
+    s.ScrollBarThickness = 4
+    s.ScrollBarImageColor3 = Theme.Accent
+    s.CanvasSize = UDim2.new(0, 0, 0, 0)
+    s.Visible = false
+    s.Parent = ContentWrap
+    local l = Instance.new("UIListLayout", s)
+    l.Padding = UDim.new(0, 6)
+    l.SortOrder = Enum.SortOrder.LayoutOrder
+    s.ChildAdded:Connect(function() task.wait() s.CanvasSize = UDim2.new(0, 0, 0, l.AbsoluteContentSize.Y + 12) end)
+    s.ChildRemoved:Connect(function() task.wait() s.CanvasSize = UDim2.new(0, 0, 0, l.AbsoluteContentSize.Y + 12) end)
+    return s
+end
+
+local function section(page, text)
+    local f = Instance.new("Frame")
+    f.Size = UDim2.new(1, 0, 0, 24)
+    f.BackgroundTransparency = 1
+    f.Parent = page
+    local l = Instance.new("TextLabel")
+    l.Size = UDim2.new(1, 0, 1, 0)
+    l.BackgroundTransparency = 1
+    l.Text = "» " .. text
+    l.TextColor3 = Theme.Accent
+    l.Font = Theme.FontBold
+    l.TextSize = 12
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.Parent = f
+end
+
+local function toggle(page, name, default, cb)
+    local f = Instance.new("Frame")
+    f.Size = UDim2.new(1, 0, 0, 34)
+    f.BackgroundColor3 = Theme.Element
+    f.BorderSizePixel = 0
+    f.Parent = page
+    newCorner(f, 6)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -60, 1, 0)
+    lbl.Position = UDim2.new(0, 12, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = name
+    lbl.TextColor3 = Theme.Text
+    lbl.Font = Theme.Font
+    lbl.TextSize = 13
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = f
+    local track = Instance.new("Frame")
+    track.Size = UDim2.new(0, 40, 0, 20)
+    track.Position = UDim2.new(1, -50, 0.5, -10)
+    track.BackgroundColor3 = default and Theme.Accent or Color3.fromRGB(60,60,75)
+    track.BorderSizePixel = 0
+    track.Parent = f
+    newCorner(track, 10)
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 14, 0, 14)
+    knob.Position = default and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.BorderSizePixel = 0
+    knob.Parent = track
+    newCorner(knob, 7)
+    local on = default
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 1, 0)
+    btn.BackgroundTransparency = 1
+    btn.Text = ""
+    btn.Parent = f
+    btn.MouseButton1Click:Connect(function()
+        on = not on
+        track.BackgroundColor3 = on and Theme.Accent or Color3.fromRGB(60,60,75)
+        knob:TweenPosition(on and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7), "Out", "Quad", 0.12)
+        if cb then pcall(cb, on) end
+    end)
+    return {Set = function(v) on = v track.BackgroundColor3 = v and Theme.Accent or Color3.fromRGB(60,60,75) knob.Position = v and UDim2.new(1,-17,0.5,-7) or UDim2.new(0,3,0.5,-7) if cb then pcall(cb,v) end end}
+end
+
+local function slider(page, name, min, max, default, suffix, cb)
+    local f = Instance.new("Frame")
+    f.Size = UDim2.new(1, 0, 0, 46)
+    f.BackgroundColor3 = Theme.Element
+    f.BorderSizePixel = 0
+    f.Parent = page
+    newCorner(f, 6)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -20, 0, 20)
+    lbl.Position = UDim2.new(0, 12, 0, 4)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = name .. ": " .. default .. (suffix or "")
+    lbl.TextColor3 = Theme.Text
+    lbl.Font = Theme.Font
+    lbl.TextSize = 13
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = f
+    local bar = Instance.new("Frame")
+    bar.Size = UDim2.new(1, -24, 0, 6)
+    bar.Position = UDim2.new(0, 12, 0, 32)
+    bar.BackgroundColor3 = Color3.fromRGB(60,60,75)
+    bar.BorderSizePixel = 0
+    bar.Parent = f
+    newCorner(bar, 3)
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new((default-min)/(max-min), 0, 1, 0)
+    fill.BackgroundColor3 = Theme.Accent
+    fill.BorderSizePixel = 0
+    fill.Parent = bar
+    newCorner(fill, 3)
+    local dragging = false
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 16)
+    btn.Position = UDim2.new(0, 0, 0, 26)
+    btn.BackgroundTransparency = 1
+    btn.Text = ""
+    btn.Parent = f
+    local function update(input)
+        local rel = math.clamp((input.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+        local val = min + rel * (max - min)
+        if max - min > 20 then val = math.floor(val) end
+        fill.Size = UDim2.new(rel, 0, 1, 0)
+        lbl.Text = name .. ": " .. val .. (suffix or "")
+        if cb then pcall(cb, val) end
+    end
+    btn.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            update(i)
+        end
+    end)
+    UIS.InputChanged:Connect(function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then update(i) end
+    end)
+    UIS.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end)
+end
+
+local function button(page, name, cb)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1, 0, 0, 32)
+    b.BackgroundColor3 = Theme.Element
+    b.Text = name
+    b.TextColor3 = Theme.Text
+    b.Font = Theme.Font
+    b.TextSize = 13
+    b.BorderSizePixel = 0
+    b.Parent = page
+    newCorner(b, 6)
+    b.MouseEnter:Connect(function() b.BackgroundColor3 = Color3.fromRGB(50,50,68) end)
+    b.MouseLeave:Connect(function() b.BackgroundColor3 = Theme.Element end)
+    b.MouseButton1Click:Connect(function() if cb then pcall(cb) end end)
+    return b
+end
+
+local function input(page, name, placeholder, cb)
+    local f = Instance.new("Frame")
+    f.Size = UDim2.new(1, 0, 0, 32)
+    f.BackgroundColor3 = Theme.Element
+    f.BorderSizePixel = 0
+    f.Parent = page
+    newCorner(f, 6)
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(1, -20, 1, 0)
+    box.Position = UDim2.new(0, 12, 0, 0)
+    box.BackgroundTransparency = 1
+    box.Text = ""
+    box.PlaceholderText = name .. " | " .. placeholder
+    box.TextColor3 = Theme.Text
+    box.PlaceholderColor3 = Theme.Sub
+    box.Font = Theme.Font
+    box.TextSize = 13
+    box.TextXAlignment = Enum.TextXAlignment.Left
+    box.ClearTextOnFocus = false
+    box.Parent = f
+    box.FocusLost:Connect(function() if cb then pcall(cb, box.Text) end end)
+    return box
+end
+
+local function paragraph(page, title, text)
+    local f = Instance.new("Frame")
+    f.Size = UDim2.new(1, 0, 0, 26)
+    f.BackgroundColor3 = Theme.Element
+    f.BorderSizePixel = 0
+    f.Parent = page
+    newCorner(f, 6)
+    f.AutomaticSize = Enum.AutomaticSize.Y
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -20, 0, 0)
+    lbl.Position = UDim2.new(0, 12, 0, 8)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = title .. "\n" .. text
+    lbl.TextColor3 = Theme.Text
+    lbl.Font = Theme.Font
+    lbl.TextSize = 12
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.TextYAlignment = Enum.TextYAlignment.Top
+    lbl.TextWrapped = true
+    lbl.AutomaticSize = Enum.AutomaticSize.Y
+    lbl.Parent = f
+end
+
+local function keybind(page, name, default, cb)
+    local f = Instance.new("Frame")
+    f.Size = UDim2.new(1, 0, 0, 34)
+    f.BackgroundColor3 = Theme.Element
+    f.BorderSizePixel = 0
+    f.Parent = page
+    newCorner(f, 6)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -110, 1, 0)
+    lbl.Position = UDim2.new(0, 12, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = name
+    lbl.TextColor3 = Theme.Text
+    lbl.Font = Theme.Font
+    lbl.TextSize = 13
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = f
+    local keyBtn = Instance.new("TextButton")
+    keyBtn.Size = UDim2.new(0, 90, 0, 24)
+    keyBtn.Position = UDim2.new(1, -100, 0.5, -12)
+    keyBtn.BackgroundColor3 = Theme.Panel
+    keyBtn.Text = default.Name
+    keyBtn.TextColor3 = Theme.Accent
+    keyBtn.Font = Theme.FontBold
+    keyBtn.TextSize = 12
+    keyBtn.BorderSizePixel = 0
+    keyBtn.Parent = f
+    newCorner(keyBtn, 4)
+    local listening = false
+    keyBtn.MouseButton1Click:Connect(function()
+        listening = true
+        keyBtn.Text = "按任意键..."
+        keyBtn.TextColor3 = Theme.Yellow
+    end)
+    UIS.InputBegan:Connect(function(i, gp)
+        if not listening then return end
+        if gp then return end
+        if i.UserInputType == Enum.UserInputType.Keyboard then
+            listening = false
+            keyBtn.Text = i.KeyCode.Name
+            keyBtn.TextColor3 = Theme.Accent
+            if cb then pcall(cb, i.KeyCode) end
+        end
+    end)
+end
+
+local categories = {}
+local function addCategory(name)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 32)
+    btn.BackgroundColor3 = Theme.Sidebar
+    btn.Text = "  " .. name
+    btn.TextColor3 = Theme.Sub
+    btn.Font = Theme.Font
+    btn.TextSize = 13
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.BorderSizePixel = 0
+    btn.Parent = SideScroll
+    newCorner(btn, 6)
+    local page = newPage()
+    categories[name] = {btn = btn, page = page}
+    btn.MouseButton1Click:Connect(function()
+        for _, c in pairs(categories) do
+            c.page.Visible = false
+            c.btn.BackgroundColor3 = Theme.Sidebar
+            c.btn.TextColor3 = Theme.Sub
+        end
+        page.Visible = true
+        btn.BackgroundColor3 = Theme.Element
+        btn.TextColor3 = Theme.Accent
+    end)
+    SideScroll.CanvasSize = UDim2.new(0, 0, 0, SideLayout.AbsoluteContentSize.Y + 12)
+    return page
+end
+local function selectCategory(name)
+    if categories[name] then categories[name].btn.MouseButton1Click:Fire() end
+end
+
+-- 关键: 保存引用, 后续段共享
+_G.XenoRefs = _G.XenoRefs or {}
+_G.XenoRefs.addCategory = addCategory
+_G.XenoRefs.section = section
+_G.XenoRefs.toggle = toggle
+_G.XenoRefs.slider = slider
+_G.XenoRefs.button = button
+_G.XenoRefs.input = input
+_G.XenoRefs.paragraph = paragraph
+_G.XenoRefs.keybind = keybind
+_G.XenoRefs.selectCategory = selectCategory
+_G.XenoRefs.State = State
+_G.XenoRefs.ScreenGui = ScreenGui
+_G.XenoRefs.Main = Main
+_G.XenoRefs.ContentWrap = ContentWrap
+_G.XenoRefs.realTP = realTP
+_G.XenoRefs.tpToPlayer = tpToPlayer
+_G.XenoRefs.LocalPlayer = LocalPlayer
+_G.XenoRefs.Camera = Camera
+_G.XenoRefs.Theme = Theme
+_G.XenoRefs.flyConfig = flyConfig
+
+-- 战斗
+local CP = addCategory("战斗")
+section(CP, "自瞄")
+local fovCircle
+pcall(function()
+    fovCircle = Drawing.new("Circle")
+    fovCircle.Visible = false
+    fovCircle.Thickness = 1
+    fovCircle.NumSides = 64
+    fovCircle.Radius = State.FOV
+    fovCircle.Filled = false
+    fovCircle.Color = Color3.fromRGB(255,0,0)
+    fovCircle.Transparency = 0.6
+end)
+_G.XenoRefs.fovCircle = fovCircle
+
+task.spawn(function()
+    while true do
+        pcall(function()
+            local fc = _G.XenoRefs.fovCircle
+            if fc then
+                fc.Position = Camera.ViewportSize / 2
+                fc.Radius = State.FOV
+                fc.Visible = State.Aimbot
+            end
+            if State.Aimbot then
+                local closest, minD = nil, State.FOV
+                local vp = Camera.ViewportSize / 2
+                for _, p in pairs(Players:GetPlayers()) do
+                    if p == LocalPlayer then continue end
+                    local char = p.Character
+                    if not char then continue end
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    if not hum or hum.Health <= 0 then continue end
+                    local part = State.LockHead and char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+                    if not part then continue end
+                    local sp, on = Camera:WorldToViewportPoint(part.Position)
+                    if on and sp.Z > 0 then
+                        local d = (Vector2.new(sp.X, sp.Y) - vp).Magnitude
+                        if d < minD then minD = d; closest = part end
+                    end
+                end
+                if closest then
+                    Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, closest.Position), 1 / State.Smoothness)
+                end
+            end
+        end)
+        RunService.RenderStepped:Wait()
+    end
+end)
+
+toggle(CP, "自瞄", false, function(v) State.Aimbot = v end)
+toggle(CP, "锁头", false, function(v) State.LockHead = v end)
+slider(CP, "FOV 半径", 50, 1200, 300, " px", function(v) State.FOV = v end)
+slider(CP, "平滑度", 1, 30, 8, "", function(v) State.Smoothness = v end)
+
+section(CP, "Silent Aim")
+task.spawn(function()
+    while true do
+        pcall(function()
+            if State.SilentAim and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+                local closest, minD = nil, State.SilentAimFOV
+                local vp = Camera.ViewportSize / 2
+                for _, p in pairs(Players:GetPlayers()) do
+                    if p == LocalPlayer then continue end
+                    local char = p.Character
+                    if not char then continue end
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    if not hum or hum.Health <= 0 then continue end
+                    local part = char:FindFirstChild(State.SilentAimTarget) or char:FindFirstChild("Head")
+                    if not part then continue end
+                    local sp, on = Camera:WorldToViewportPoint(part.Position)
+                    if on and sp.Z > 0 then
+                        local d = (Vector2.new(sp.X, sp.Y) - vp).Magnitude
+                        if d < minD then minD = d; closest = part end
+                    end
+                end
+                if closest and math.random(1, 100) <= State.SilentAimHitChance then
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, closest.Position)
+                end
+            end
+        end)
+        RunService.RenderStepped:Wait()
+    end
+end)
+toggle(CP, "子弹自锁", false, function(v) State.SilentAim = v end)
+slider(CP, "命中率", 0, 100, 100, " %", function(v) State.SilentAimHitChance = v end)
+slider(CP, "自锁 FOV", 50, 1200, 200, " px", function(v) State.SilentAimFOV = v end)
+
+section(CP, "碰撞箱")
+local originalSizes = {}
+toggle(CP, "增大碰撞箱", false, function(v) State.Hitbox = v end)
+slider(CP, "碰撞箱倍率", 1, 10, 3, " x", function(v) State.HitboxScale = v end)
+
+section(CP, "击杀光环")
+toggle(CP, "击杀光环", false, function(v) State.KillAura = v end)
+slider(CP, "光环范围", 5, 100, 15, " studs", function(v) State.KillAuraRange = v end)
+toggle(CP, "自动击杀全部", false, function(v) State.AutoKillAll = v end)
+
+section(CP, "无敌")
+toggle(CP, "无敌 (基础锁血)", false, function(v)
+    State.GodMode = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.GodMode then return end
+                    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                    if hum then hum.Health = hum.MaxHealth end
+                end)
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+toggle(CP, "超级无敌 (抗秒杀)", false, function(v) State.SuperGodMode = v end)
+
+task.spawn(function()
+    while true do
+        pcall(function()
+            if State.Hitbox then
+                for _, p in pairs(Players:GetPlayers()) do
+                    if p == LocalPlayer then continue end
+                    local c = p.Character
+                    if not c then continue end
+                    local r = c:FindFirstChild("HumanoidRootPart")
+                    if not r then continue end
+                    if not originalSizes[p] then originalSizes[p] = r.Size end
+                    r.Size = originalSizes[p] * State.HitboxScale
+                    r.Transparency = 0.6
+                    r.CanCollide = false
+                end
+            else
+                for p, size in pairs(originalSizes) do
+                    local c = p.Character
+                    local r = c and c:FindFirstChild("HumanoidRootPart")
+                    if r then r.Size = size; r.Transparency = 1 end
+                end
+                originalSizes = {}
+            end
+            if State.KillAura then
+                local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if myRoot then
+                    for _, p in pairs(Players:GetPlayers()) do
+                        if p == LocalPlayer then continue end
+                        local c = p.Character
+                        local r = c and c:FindFirstChild("HumanoidRootPart")
+                        local h = c and c:FindFirstChildOfClass("Humanoid")
+                        if r and h and (r.Position - myRoot.Position).Magnitude <= State.KillAuraRange then
+                            h.Health = 0
+                        end
+                    end
+                end
+            end
+            if State.AutoKillAll then
+                for _, p in pairs(Players:GetPlayers()) do
+                    if p == LocalPlayer then continue end
+                    local h = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+                    if h then h.Health = 0 end
+                end
+            end
+        end)
+        task.wait(0.15)
+    end
+end)
+
+-- 移动
+local MP = addCategory("移动")
+section(MP, "基础")
+local function applySpeed(v)
+    local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if h then h.WalkSpeed = v end
+end
+slider(MP, "速度", 8, 500, 16, " ws", function(v) State.Speed = v; applySpeed(v) end)
+slider(MP, "跳跃力", 50, 1000, 50, " jp", function(v)
+    State.Jump = v
+    local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if h then h.UseJumpPower = true; h.JumpPower = v end
+end)
+toggle(MP, "无限跳跃", false, function(v) State.InfJump = v end)
+UIS.JumpRequest:Connect(function()
+    if State.InfJump then
+        local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if h then h:ChangeState("Jumping") end
+    end
+end)
+
+section(MP, "穿墙")
+toggle(MP, "穿墙 (不穿地板)", false, function(v)
+    State.Noclip = v
+    if not v then
+        local c = LocalPlayer.Character
+        if c then for _, p in pairs(c:GetDescendants()) do
+            if p:IsA("BasePart") then p.CanCollide = true end
+        end end
+    end
+end)
+toggle(MP, "穿墙快版 (全穿)", false, function(v)
+    State.NoclipFast = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.NoclipFast then return end
+                    local char = LocalPlayer.Character
+                    if char then
+                        for _, p in pairs(char:GetDescendants()) do
+                            if p:IsA("BasePart") then p.CanCollide = false end
+                        end
+                    end
+                end)
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+local ExcludeType = (Enum.RaycastFilterType and Enum.RaycastFilterType.Exclude)
+    or (Enum.RaycastFilterType and Enum.RaycastFilterType.Blacklist)
+    or Enum.RaycastFilterType
+
+task.spawn(function()
+    while true do
+        pcall(function()
+            if State.Noclip then
+                local char = LocalPlayer.Character
+                if char then
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        local params = RaycastParams.new()
+                        params.FilterDescendantsInstances = {char}
+                        params.FilterType = ExcludeType
+                        params.IgnoreWater = true
+                        local result = workspace:Raycast(hrp.Position, Vector3.new(0, -5, 0), params)
+                        local grounded = result ~= nil
+                        for _, p in pairs(char:GetDescendants()) do
+                            if p:IsA("BasePart") then p.CanCollide = grounded end
+                        end
+                    end
+                end
+            end
+        end)
+        task.wait(0.05)
+    end
+end)
+
+section(MP, "飞行")
+local flyVel, flyGyro, flyConn
+local function stopFly()
+    if flyConn then flyConn:Disconnect(); flyConn = nil end
+    if flyVel then flyVel:Destroy(); flyVel = nil end
+    if flyGyro then flyGyro:Destroy(); flyGyro = nil end
+end
+local function startFly()
+    stopFly()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    flyVel = Instance.new("BodyVelocity")
+    flyVel.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+    flyVel.Velocity = Vector3.zero
+    flyVel.Parent = hrp
+    flyGyro = Instance.new("BodyGyro")
+    flyGyro.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
+    flyGyro.P = flyConfig.Smoothness * 100
+    flyGyro.D = flyConfig.Smoothness * 10
+    flyGyro.CFrame = hrp.CFrame
+    flyGyro.Parent = hrp
+    flyConn = RunService.RenderStepped:Connect(function()
+        pcall(function()
+            if not State.Fly then return end
+            local c = LocalPlayer.Character
+            if not c then return end
+            local r = c:FindFirstChild("HumanoidRootPart")
+            if not r then return end
+            if flyConfig.Noclip then
+                for _, p in pairs(c:GetDescendants()) do
+                    if p:IsA("BasePart") then p.CanCollide = false end
+                end
+            end
+            local dir = Vector3.zero
+            if UIS:IsKeyDown(Enum.KeyCode.W) then dir += Camera.CFrame.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then dir -= Camera.CFrame.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then dir -= Camera.CFrame.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then dir += Camera.CFrame.RightVector end
+            local vDir = 0
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then vDir += 1 end
+            if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then vDir -= 1 end
+            if dir.Magnitude > 0 then
+                flyVel.Velocity = dir.Unit * flyConfig.Speed + Vector3.new(0, vDir * flyConfig.VerticalSpeed, 0)
+            else
+                flyVel.Velocity = Vector3.new(0, vDir * flyConfig.VerticalSpeed, 0)
+            end
+            flyGyro.CFrame = Camera.CFrame
+        end)
+    end)
+end
+toggle(MP, "飞行", false, function(v)
+    State.Fly = v
+    if v then startFly() else stopFly() end
+end)
+slider(MP, "飞行速度", 10, 500, 60, " studs/s", function(v) flyConfig.Speed = v end)
+slider(MP, "上升下降速度", 10, 300, 40, " studs/s", function(v) flyConfig.VerticalSpeed = v end)
+
+section(MP, "旋转")
+toggle(MP, "无限旋转自己", false, function(v)
+    State.SpinSelf = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.SpinSelf then return end
+                    local char = LocalPlayer.Character
+                    if not char then return end
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    if not hrp then return end
+                    hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0)
+                end)
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+slider(MP, "旋转速度", 1, 90, 15, " °/帧", function(v) spinSpeed = v end)
+
+toggle(MP, "冰冻自己", false, function(v)
+    State.Frozen = v
+    local r = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not r then return end
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if State.Frozen and r and r.Parent then
+                        r.Anchored = true
+                        r.Velocity = Vector3.zero
+                    end
+                end)
+                task.wait(0.1)
+            end
+        end)
+    else r.Anchored = false end
+end)
+
+local freecamConn, freecamPos = Vector3.zero, Vector3.zero
+local freecamRX, freecamRY = 0, 0
+local function setFreecam(enable)
+    if enable then
+        if State.Freecam then return end
+        State.Freecam = true
+        Camera.CameraType = Enum.CameraType.Scriptable
+        Camera.CameraSubject = nil
+        freecamPos = Camera.CFrame.Position
+        local look = Camera.CFrame.LookVector
+        freecamRY = math.atan2(-look.X, -look.Z)
+        freecamRX = math.asin(math.clamp(look.Y, -1, 1))
+        if freecamConn then freecamConn:Disconnect() end
+        freecamConn = RunService.RenderStepped:Connect(function()
+            pcall(function()
+                if not State.Freecam then return end
+                if UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+                    local d = UIS:GetMouseDelta()
+                    freecamRY -= d.X * 0.005
+                    freecamRX = math.clamp(freecamRX + d.Y * 0.005, -math.pi/2 + 0.01, math.pi/2 - 0.01)
+                end
+                local speed = UIS:IsKeyDown(Enum.KeyCode.LeftShift) and 3 or 1
+                local rot = CFrame.fromEulerAnglesYXZ(freecamRX, freecamRY, 0)
+                local dir = Vector3.zero
+                if UIS:IsKeyDown(Enum.KeyCode.W) then dir += rot.LookVector end
+                if UIS:IsKeyDown(Enum.KeyCode.S) then dir -= rot.LookVector end
+                if UIS:IsKeyDown(Enum.KeyCode.A) then dir -= rot.RightVector end
+                if UIS:IsKeyDown(Enum.KeyCode.D) then dir += rot.RightVector end
+                if UIS:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
+                if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then dir -= Vector3.new(0,1,0) end
+                freecamPos += dir * speed
+                Camera.CFrame = CFrame.new(freecamPos) * rot
+            end)
+        end)
+    else
+        if not State.Freecam then return end
+        State.Freecam = false
+        if freecamConn then freecamConn:Disconnect(); freecamConn = nil end
+        Camera.CameraType = Enum.CameraType.Custom
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        Camera.CameraSubject = hum or char
+    end
+end
+toggle(MP, "Freecam (F4)", false, function(v) setFreecam(v) end)
+button(MP, "回归主视角", function() setFreecam(false) end)
+
+-- 视觉
+local VP = addCategory("视觉")
+section(VP, "ESP")
+local espDrawings = {}
+local function getESPDrawings(plr)
+    if espDrawings[plr] then return espDrawings[plr] end
+    local d = {box = Drawing.new("Square"), name = Drawing.new("Text"), health = Drawing.new("Text"), dist = Drawing.new("Text")}
+    d.box.Thickness = 1; d.box.Filled = false; d.box.Color = State.ESP_Color; d.box.Transparency = 1
+    d.name.Size = 14; d.name.Center = true; d.name.Outline = true; d.name.Color = State.ESP_Color; d.name.Font = 2
+    d.health.Size = 12; d.health.Center = true; d.health.Outline = true; d.health.Font = 2
+    d.dist.Size = 12; d.dist.Center = true; d.dist.Outline = true; d.dist.Color = Color3.fromRGB(200, 200, 220); d.dist.Font = 2
+    espDrawings[plr] = d
+    return d
+end
+
+task.spawn(function()
+    while true do
+        pcall(function()
+            local active = {}
+            for _, p in pairs(Players:GetPlayers()) do
+                if p == LocalPlayer then continue end
+                local char = p.Character
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if not hum or not hrp or hum.Health <= 0 then
+                    if espDrawings[p] then for _, d in pairs(espDrawings[p]) do d.Visible = false end end
+                    continue
+                end
+                active[p] = true
+                local d = getESPDrawings(p)
+                local headScreen, headOn = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0, 2.5, 0))
+                local feetScreen, feetOn = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+                if not (headOn and feetOn) or headScreen.Z < 0 then
+                    for _, dr in pairs(d) do dr.Visible = false end
+                    continue
+                end
+                local boxTop, boxBottom = headScreen.Y, feetScreen.Y
+                local boxH = boxBottom - boxTop
+                local boxW = boxH * 0.5
+                d.box.Visible = State.ESP_Player
+                d.box.Color = State.ESP_Color
+                d.box.Position = Vector2.new(headScreen.X - boxW/2, boxTop)
+                d.box.Size = Vector2.new(boxW, boxH)
+                d.name.Visible = State.ESP_Name
+                d.name.Text = p.Name
+                d.name.Position = Vector2.new(headScreen.X, boxTop - 18)
+                d.name.Color = State.ESP_Color
+                d.health.Visible = State.ESP_Health
+                d.health.Text = math.floor(hum.Health) .. "/" .. math.floor(hum.MaxHealth)
+                d.health.Position = Vector2.new(headScreen.X, boxBottom + 2)
+                local r = hum.Health / math.max(hum.MaxHealth, 1)
+                d.health.Color = Color3.fromRGB(255 * (1-r), 255 * r, 80)
+                d.dist.Visible = State.ESP_Distance
+                local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if myRoot then
+                    local dist = (hrp.Position - myRoot.Position).Magnitude
+                    if State.UseMeters then dist = dist * 0.28 end
+                    d.dist.Text = math.floor(dist) .. (State.UseMeters and " m" or " studs")
+                    d.dist.Position = Vector2.new(headScreen.X, boxBottom + 16)
+                end
+            end
+            for plr, _ in pairs(espDrawings) do
+                if not active[plr] then
+                    for _, d in pairs(espDrawings[plr]) do pcall(function() d:Remove() end) end
+                    espDrawings[plr] = nil
+                end
+            end
+        end)
+        RunService.RenderStepped:Wait()
+    end
+end)
+
+toggle(VP, "ESP 总开关", false, function(v) State.ESP_Player = v end)
+toggle(VP, "显示名字", false, function(v) State.ESP_Name = v end)
+toggle(VP, "显示血量", false, function(v) State.ESP_Health = v end)
+toggle(VP, "显示距离", false, function(v) State.ESP_Distance = v end)
+toggle(VP, "距离用米", false, function(v) State.UseMeters = v end)
+
+section(VP, "环境")
+toggle(VP, "全亮度", false, function(v)
+    State.FullBright = v
+    if v then
+        Lighting.Brightness = 3
+        Lighting.Ambient = Color3.fromRGB(200,200,200)
+        Lighting.OutdoorAmbient = Color3.fromRGB(200,200,200)
+        Lighting.GlobalShadows = false
+    else
+        Lighting.Brightness = State.OriginalBrightness
+        Lighting.Ambient = State.OriginalAmbient
+        Lighting.OutdoorAmbient = State.OriginalOutdoor
+        Lighting.GlobalShadows = true
+    end
+end)
+toggle(VP, "移除雾", false, function(v)
+    State.NoFog = v
+    if v then Lighting.FogEnd = 1e6; Lighting.FogStart = 0
+    else Lighting.FogEnd = State.OriginalFogEnd end
+end)
+
+-- 世界
+local WP = addCategory("世界")
+slider(WP, "重力", 0, 500, 196, "", function(v) workspace.Gravity = v end)
+slider(WP, "时间", 0, 24, 12, " h", function(v) Lighting.ClockTime = v end)
+button(WP, "重置重力/时间", function()
+    workspace.Gravity = State.OriginalGravity
+    Lighting.ClockTime = State.OriginalClock
+end)
+button(WP, "夜晚", function() Lighting.ClockTime = 0 end)
+button(WP, "白天", function() Lighting.ClockTime = 14 end)
+input(WP, "位置名", "家", function(t) getgenv().PosName = t end)
+button(WP, "保存当前位置", function()
+    local name = getgenv().PosName
+    if not name then return end
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then State.SavedPositions[name] = hrp.CFrame; print("[Xeno] 保存: " .. name) end
+end)
+button(WP, "传送到保存位置", function()
+    local name = getgenv().PosName
+    if not name or not State.SavedPositions[name] then return end
+    realTP(State.SavedPositions[name])
+end)
+
+-- 玩家
+local PP = addCategory("玩家")
+section(PP, "列表")
+local plFrame = Instance.new("Frame")
+plFrame.Size = UDim2.new(1, 0, 0, 180)
+plFrame.BackgroundColor3 = Theme.Element
+plFrame.BorderSizePixel = 0
+plFrame.Parent = PP
+newCorner(plFrame, 6)
+local plScroll = Instance.new("ScrollingFrame")
+plScroll.Size = UDim2.new(1, -8, 1, -8)
+plScroll.Position = UDim2.new(0, 4, 0, 4)
+plScroll.BackgroundTransparency = 1
+plScroll.BorderSizePixel = 0
+plScroll.ScrollBarThickness = 3
+plScroll.Parent = plFrame
+local plLayout = Instance.new("UIListLayout", plScroll)
+plLayout.Padding = UDim.new(0, 2)
+local function refresh()
+    for _, c in pairs(plScroll:GetChildren()) do
+        if c:IsA("TextButton") then c:Destroy() end
+    end
+    for _, p in pairs(Players:GetPlayers()) do
+        if p == LocalPlayer then continue end
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.new(1, 0, 0, 26)
+        b.BackgroundColor3 = Theme.Panel
+        b.Text = "  " .. p.Name
+        b.TextColor3 = Theme.Text
+        b.Font = Theme.Font
+        b.TextSize = 12
+        b.TextXAlignment = Enum.TextXAlignment.Left
+        b.BorderSizePixel = 0
+        b.Parent = plScroll
+        newCorner(b, 4)
+        b.MouseButton1Click:Connect(function() tpToPlayer(p) end)
+    end
+    plScroll.CanvasSize = UDim2.new(0, 0, 0, plLayout.AbsoluteContentSize.Y + 6)
+end
+refresh()
+Players.PlayerAdded:Connect(function() task.wait(0.5) refresh() end)
+Players.PlayerRemoving:Connect(function() task.wait(0.5) refresh() end)
+button(PP, "刷新", refresh)
+
+-- 自动化
+local AP = addCategory("自动化")
+toggle(AP, "反 AFK", false, function(v)
+    State.AntiAFK = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AntiAFK then return end
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton2(Vector2.new())
+                end)
+                task.wait(60)
+            end
+        end)
+    end
+end)
+toggle(AP, "自动点击", false, function(v)
+    State.AutoClicker = v
+    if v then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if not State.AutoClicker then return end
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton1(Vector2.new(100, 100))
+                end)
+                task.wait(State.AutoClickDelay)
+            end
+        end)
+    end
+end)
+slider(AP, "点击间隔", 0.01, 1, 0.1, " s", function(v) State.AutoClickDelay = v end)
+
+-- 控制台
+local ConP = addCategory("控制台")
+local cGui = Instance.new("ScreenGui")
+cGui.Name = "XenoConsole"
+cGui.ResetOnSpawn = false
+pcall(function() cGui.Parent = game.CoreGui end)
+if not cGui.Parent then cGui.Parent = LocalPlayer:FindFirstChildOfClass("PlayerGui") end
+local cf = Instance.new("Frame")
+cf.Size = UDim2.new(0, 560, 0, 340)
+cf.Position = UDim2.new(0.5, -280, 0.5, -170)
+cf.BackgroundColor3 = Theme.BG
+cf.BorderSizePixel = 0
+cf.Visible = false
+cf.Active = true
+cf.Draggable = true
+cf.Parent = cGui
+newCorner(cf, 10)
+local t1 = Instance.new("TextLabel")
+t1.Size = UDim2.new(1, 0, 0, 30)
+t1.BackgroundColor3 = Theme.Sidebar
+t1.Text = "  Xeno 控制台 | help"
+t1.TextColor3 = Theme.Accent
+t1.Font = Theme.FontCode
+t1.TextSize = 13
+t1.TextXAlignment = Enum.TextXAlignment.Left
+t1.BorderSizePixel = 0
+t1.Parent = cf
+newCorner(t1, 10)
+local out = Instance.new("ScrollingFrame")
+out.Size = UDim2.new(1, -20, 1, -80)
+out.Position = UDim2.new(0, 10, 0, 36)
+out.BackgroundColor3 = Color3.fromRGB(10,10,15)
+out.BorderSizePixel = 0
+out.ScrollBarThickness = 4
+out.CanvasSize = UDim2.new(0,0,0,0)
+out.Parent = cf
+newCorner(out, 6)
+local ol = Instance.new("UIListLayout", out)
+local ci = Instance.new("TextBox")
+ci.Size = UDim2.new(1, -20, 0, 32)
+ci.Position = UDim2.new(0, 10, 1, -40)
+ci.BackgroundColor3 = Theme.Element
+ci.Text = ""
+ci.PlaceholderText = "输入命令..."
+ci.TextColor3 = Theme.Text
+ci.PlaceholderColor3 = Theme.Sub
+ci.Font = Theme.FontCode
+ci.TextSize = 13
+ci.TextXAlignment = Enum.TextXAlignment.Left
+ci.ClearTextOnFocus = false
+ci.BorderSizePixel = 0
+ci.Parent = cf
+newCorner(ci, 6)
+local function log(txt, color)
+    local l = Instance.new("TextLabel")
+    l.Size = UDim2.new(1, -8, 0, 18)
+    l.BackgroundTransparency = 1
+    l.Text = "[Xeno] " .. txt
+    l.TextColor3 = color or Theme.Green
+    l.Font = Theme.FontCode
+    l.TextSize = 12
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.Parent = out
+    task.wait()
+    out.CanvasSize = UDim2.new(0,0,0, ol.AbsoluteContentSize.Y + 8)
+end
+ci.FocusLost:Connect(function(enter)
+    if enter and ci.Text ~= "" then
+        log("> "..ci.Text, Color3.fromRGB(255,220,100))
+        local cmd, arg = ci.Text:match("^(%S+)%s*(.*)$")
+        if cmd then
+            cmd = cmd:lower()
+            if cmd == "help" then log("tp/speed/god/supergod/noclip/kill/players/clear/lua", Theme.Accent) end
+            if cmd == "tp" then local p = Players:FindFirstChild(arg) if p then tpToPlayer(p); log("传送 "..arg) end end
+            if cmd == "speed" then local v = tonumber(arg) if v then applySpeed(v); log("速度 "..v) end end
+            if cmd == "god" then State.GodMode = not State.GodMode; log("无敌 "..tostring(State.GodMode)) end
+            if cmd == "supergod" then State.SuperGodMode = not State.SuperGodMode; log("超无敌 "..tostring(State.SuperGodMode)) end
+            if cmd == "noclip" then State.Noclip = not State.Noclip; log("穿墙 "..tostring(State.Noclip)) end
+            if cmd == "kill" then local p = Players:FindFirstChild(arg) if p and p.Character then local h = p.Character:FindFirstChildOfClass("Humanoid") if h then h.Health = 0 end log("击杀 "..arg) end end
+            if cmd == "players" then for _, p in pairs(Players:GetPlayers()) do log("  "..p.Name) end end
+            if cmd == "clear" then for _, c in pairs(out:GetChildren()) do if c:IsA("TextLabel") then c:Destroy() end end end
+            if cmd == "lua" then local ok2, err = pcall(loadstring(arg)); log(ok2 and "OK" or ("错误: "..tostring(err)), ok2 and Theme.Green or Theme.Red) end
+        end
+        ci.Text = ""
+    end
+end)
+button(ConP, "打开控制台", function() cf.Visible = true end)
+button(ConP, "关闭控制台", function() cf.Visible = false end)
+getgenv().XenoConsoleFrame = cf
+
+-- 设置
+local SP = addCategory("设置")
+section(SP, "快捷键")
+keybind(SP, "开菜单", State.UIToggleKey, function(k) State.UIToggleKey = k end)
+keybind(SP, "控制台", State.ConsoleKey, function(k) State.ConsoleKey = k end)
+section(SP, "详情")
+paragraph(SP, "Xeno Hub v9.0", "作者: Deepseek\n第 1 段: 战斗/移动/视觉/世界/玩家/自动化/控制台/设置")
+
+-- 快捷键
+UIS.InputBegan:Connect(function(i, gp)
+    if gp then return end
+    if i.KeyCode == State.UIToggleKey then Main.Visible = not Main.Visible
+    elseif i.KeyCode == State.ConsoleKey then
+        local cf2 = getgenv().XenoConsoleFrame
+        if cf2 then cf2.Visible = not cf2.Visible end
+    end
+end)
+
+LocalPlayer.CharacterAdded:Connect(function(c)
+    task.wait(1)
+    local h = c:FindFirstChildOfClass("Humanoid")
+    if h then h.UseJumpPower = true; h.JumpPower = State.Jump; h.WalkSpeed = State.Speed end
+    if not State.Freecam then Camera.CameraSubject = h end
+end)
+
+selectCategory("战斗")
+pcall(function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "Xeno Hub (第 1 段)",
+        Text = "主脚本已加载 | 发'继续'拿第 2 段",
+        Duration = 5
+    })
+end)
+print("[Xeno Hub] 第 1 段已加载")

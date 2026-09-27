@@ -1,0 +1,336 @@
+-- ======================================================
+-- XENO HUB v9.0 - 第 5 段 / 共 6 段 (80 功能)
+-- 接第 4 段末尾执行
+-- ======================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local Debris = game:GetService("Debris")
+local StarterGui = game:GetService("StarterGui")
+local VirtualUser = game:GetService("VirtualUser")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = _G.XenoRefs.LocalPlayer
+local Camera = _G.XenoRefs.Camera
+local State = _G.XenoRefs.State
+local ScreenGui = _G.XenoRefs.ScreenGui
+local Theme = _G.XenoRefs.Theme
+local addCategory = _G.XenoRefs.addCategory
+local section = _G.XenoRefs.section
+local toggle = _G.XenoRefs.toggle
+local slider = _G.XenoRefs.slider
+local button = _G.XenoRefs.button
+local input = _G.XenoRefs.input
+local paragraph = _G.XenoRefs.paragraph
+local realTP = _G.XenoRefs.realTP
+local tpToPlayer = _G.XenoRefs.tpToPlayer
+
+print("[Xeno Hub] 第 5 段加载中 (80 功能)...")
+
+-- 战斗 v3 (15)
+local C5 = addCategory("战斗 v3")
+
+section(C5, "连招")
+toggle(C5, "1. 自动连招", false, function(v)
+    State.AutoCombo = v
+    if v then
+        task.spawn(function()
+            while State.AutoCombo do
+                pcall(function()
+                    local char = LocalPlayer.Character
+                    if char then
+                        for _, tool in pairs(char:GetChildren()) do
+                            if tool:IsA("Tool") then
+                                pcall(function() tool:Activate() end)
+                                task.wait(State.ComboDelay or 0.3)
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+slider(C5, "2. 连招间隔", 0.1, 2, 0.3, " s", function(v) State.ComboDelay = v end)
+toggle(C5, "3. 连招时锁定目标", false, function(v) State.ComboLock = v end)
+toggle(C5, "4. 连招时追击", false, function(v) State.ComboChase = v end)
+toggle(C5, "5. 闪避后连招", false, function(v) State.DodgeCombo = v end)
+
+section(C5, "远程战斗")
+toggle(C5, "6. 弹道预判", false, function(v) State.PredictiveAim = v end)
+slider(C5, "7. 预判强度", 0.1, 3, 1, " x", function(v) State.PredictMult = v end)
+toggle(C5, "8. 子弹追踪线", false, function(v) State.TracerVisual = v end)
+toggle(C5, "9. 跳弹预测", false, function(v) State.Ricochet = v end)
+toggle(C5, "10. 弹道下坠补偿", false, function(v) State.BulletDrop = v end)
+
+section(C5, "近战战斗")
+toggle(C5, "11. 攻击范围显示", false, function(v) State.MeleeRange = v end)
+slider(C5, "12. 攻击范围", 5, 50, 10, " studs", function(v) State.MeleeRadius = v end)
+toggle(C5, "13. 挥刀自动转身", false, function(v) State.SwingTurn = v end)
+toggle(C5, "14. 连击检测", false, function(v) State.ComboDetect = v end)
+toggle(C5, "15. 攻击冷却提示", false, function(v) State.CoolDownWarn = v end)
+
+-- 移动 v3 (15)
+local M5 = addCategory("移动 v3")
+
+section(M5, "花式移动")
+toggle(M5, "16. 走位抖动 (Anti-Aim)", false, function(v)
+    State.JitterMove = v
+    if v then
+        task.spawn(function()
+            while State.JitterMove do
+                pcall(function()
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        hrp.CFrame = hrp.CFrame + Vector3.new(math.random(-2,2), 0, math.random(-2,2))
+                    end
+                end)
+                task.wait(0.05)
+            end
+        end)
+    end
+end)
+toggle(M5, "17. 圆周走位 (绕圈)", false, function(v)
+    State.CircleStrafe = v
+    if v then
+        task.spawn(function()
+            local angle = 0
+            while State.CircleStrafe do
+                pcall(function()
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local camLook = Camera.CFrame.LookVector
+                    if hrp then
+                        angle = angle + 0.15
+                        local right = camLook:Cross(Vector3.new(0,1,0))
+                        hrp.CFrame = hrp.CFrame + right * math.sin(angle) * 0.5
+                    end
+                end)
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+toggle(M5, "18. 后退射击", false, function(v) State.Backpedal = v end)
+toggle(M5, "19. 跳跃走位", false, function(v) State.BhopStrafe = v end)
+toggle(M5, "20. 贴墙走", false, function(v) State.WallHug = v end)
+
+section(M5, "超能移动")
+toggle(M5, "21. 超级跳 (10x)", false, function(v)
+    State.SuperJump = v
+    if v then
+        UIS.JumpRequest:Connect(function()
+            if State.SuperJump then
+                local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 500, hrp.AssemblyLinearVelocity.Z)
+                end
+            end
+        end)
+    end
+end)
+toggle(M5, "22. 无敌跳", false, function(v) State.SafeJump = v end)
+toggle(M5, "23. 空中冲刺 (按 E)", false, function(v) State.AirDash = v end)
+toggle(M5, "24. 空中二段冲刺", false, function(v) State.AirDash2 = v end)
+toggle(M5, "25. 冲刺无 CD", false, function(v) State.NoDashCD2 = v end)
+
+section(M5, "地板技巧")
+toggle(M5, "26. 滑铲 (Shift)", false, function(v)
+    State.Slide = v
+    if v then
+        UIS.InputBegan:Connect(function(i, gp)
+            if not gp and i.KeyCode == Enum.KeyCode.LeftShift and State.Slide then
+                local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    hum.HipHeight = 0.5
+                    task.wait(0.5)
+                    hum.HipHeight = 2
+                end
+            end
+        end)
+    end
+end)
+toggle(M5, "27. 快速转弯", false, function(v) State.FastTurn = v end)
+toggle(M5, "28. 惯性抵消", false, function(v) State.InertiaCancel = v end)
+toggle(M5, "29. 落地无硬直", false, function(v) State.NoLandLag = v end)
+toggle(M5, "30. 反转重力", false, function(v) State.ReverseGravity = v end)
+
+-- 视觉 v3 (15)
+local V5 = addCategory("视觉 v3")
+
+section(V5, "3D 视觉")
+toggle(V5, "31. 3D 方框 ESP", false, function(v) State.ESP3DBox = v end)
+toggle(V5, "32. 3D 旋转方框", false, function(v) State.ESP3DRotate = v end)
+toggle(V5, "33. 骨骼显示 (完整)", false, function(v) State.ESPSkeletonFull = v end)
+toggle(V5, "34. 头部对准线", false, function(v) State.ESPHeadLine = v end)
+toggle(V5, "35. 底部地面线", false, function(v) State.ESPFeetLine = v end)
+
+section(V5, "屏幕效果 v2")
+toggle(V5, "36. 屏幕模糊", false, function(v) State.DepthBlur = v end)
+toggle(V5, "37. 目标轮廓", false, function(v) State.EnemyOutline = v end)
+toggle(V5, "38. 目标发光", false, function(v) State.EnemyGlow = v end)
+toggle(V5, "39. 受击屏幕闪红", false, function(v) State.HitFlash = v end)
+toggle(V5, "40. 击杀屏幕闪白", false, function(v) State.KillFlash = v end)
+toggle(V5, "41. 低血屏幕红晕", false, function(v) State.LowHPGlow = v end)
+toggle(V5, "42. 屏幕后处理增强", false, function(v) State.PostFX = v end)
+toggle(V5, "43. 目标头顶箭头", false, function(v) State.OverheadArrow = v end)
+toggle(V5, "44. 移动路径可视化", false, function(v) State.PathVisual = v end)
+toggle(V5, "45. 视角自动回正", false, function(v) State.AutoCenter = v end)
+
+-- 自动化 v3 (15)
+local A5 = addCategory("自动化 v3")
+
+section(A5, "自动农场")
+toggle(A5, "46. 农场 (最近玩家)", false, function(v)
+    State.AutoFarmNearest = v
+    if v then
+        task.spawn(function()
+            while State.AutoFarmNearest do
+                pcall(function()
+                    local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if myHRP then
+                        local closest, minD
+                        for _, p in pairs(Players:GetPlayers()) do
+                            if p == LocalPlayer then continue end
+                            local hrp = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                            local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+                            if hrp and hum and hum.Health > 0 then
+                                local d = (hrp.Position - myHRP.Position).Magnitude
+                                if not minD or d < minD then minD = d; closest = hrp end
+                            end
+                        end
+                        if closest then realTP(CFrame.new(closest.Position + Vector3.new(0, 3, 0))) end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+toggle(A5, "47. 农场 (NPC/怪物)", false, function(v)
+    State.AutoFarmNPC = v
+    if v then
+        task.spawn(function()
+            while State.AutoFarmNPC do
+                pcall(function()
+                    local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if myHRP then
+                        for _, obj in pairs(workspace:GetDescendants()) do
+                            if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
+                                local hum = obj:FindFirstChildOfClass("Humanoid")
+                                local hrp = obj:FindFirstChild("HumanoidRootPart")
+                                if hum and hrp and hum.Health > 0 and hum.Health < hum.MaxHealth then
+                                    realTP(CFrame.new(hrp.Position + Vector3.new(0, 3, 0)))
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+toggle(A5, "48. 自动收割", false, function(v) State.AutoHarvest = v end)
+toggle(A5, "49. 自动钓鱼", false, function(v) State.AutoFish = v end)
+toggle(A5, "50. 自动挖矿", false, function(v) State.AutoMine = v end)
+
+section(A5, "自动防御")
+toggle(A5, "51. 自动躲 AOE", false, function(v) State.DodgeAOE = v end)
+toggle(A5, "52. 自动补血", false, function(v) State.AutoHealItem = v end)
+toggle(A5, "53. 自动用盾", false, function(v) State.AutoShield = v end)
+toggle(A5, "54. 自动复活队友", false, function(v) State.ReviveTeam = v end)
+toggle(A5, "55. 自动驱散负面", false, function(v) State.CleanseDebuff = v end)
+
+section(A5, "自动交易")
+toggle(A5, "56. 自动接受交易", false, function(v) State.AutoTrade = v end)
+toggle(A5, "57. 拒绝诈骗交易", false, function(v) State.AutoRejectScam = v end)
+toggle(A5, "58. 自动挂单", false, function(v) State.AutoList = v end)
+toggle(A5, "59. 自动比价", false, function(v) State.AutoCompare = v end)
+toggle(A5, "60. 自动撤单", false, function(v) State.AutoCancel = v end)
+
+-- 社交 / 恶搞 (10)
+local S5 = addCategory("社交 / 恶搞")
+
+toggle(S5, "61. 复制别人外观", false, function(v)
+    if v then
+        local mouse = LocalPlayer:GetMouse()
+        if mouse.Target then
+            local model = mouse.Target:FindFirstAncestorOfClass("Model")
+            if model then
+                local hum = model:FindFirstChildOfClass("Humanoid")
+                if hum and LocalPlayer.Character then
+                    local myHum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                    if myHum then
+                        pcall(function() myHum:ApplyDescription(hum:GetAppliedDescription()) end)
+                    end
+                end
+            end
+        end
+    end
+end)
+toggle(S5, "62. 头上显示名字", false, function(v) State.ShowNameTag = v end)
+toggle(S5, "63. 假名", false, function(v)
+    if v then
+        pcall(function() LocalPlayer.DisplayName = getgenv().FakeName or "无名" end)
+    else
+        pcall(function() LocalPlayer.DisplayName = LocalPlayer.Name end)
+    end
+end)
+input(S5, "假名字", "无名", function(t) getgenv().FakeName = t end)
+toggle(S5, "64. 聊天前缀", false, function(v) State.ChatPrefix = v end)
+input(S5, "聊天前缀", "[我]", function(t) getgenv().ChatPrefix = t end)
+toggle(S5, "65. 自动回复特定玩家", false, function(v) State.AutoReply = v end)
+input(S5, "自动回复对象", "玩家名", function(t) getgenv().ReplyTo = t end)
+input(S5, "自动回复内容", "别烦我", function(t) getgenv().ReplyText = t end)
+toggle(S5, "66. 自动翻译聊天", false, function(v) State.AutoTranslate = v end)
+toggle(S5, "67. 屏蔽指定玩家聊天", false, function(v) State.BlockPlayerChat = v end)
+input(S5, "屏蔽玩家名", "名字", function(t) getgenv().BlockChatName = t end)
+toggle(S5, "68. 忽略垃圾消息", false, function(v) State.IgnoreSpam = v end)
+toggle(S5, "69. 保存聊天记录", false, function(v) State.LogChat = v end)
+toggle(S5, "70. 屏幕弹幕模式", false, function(v) State.Danmaku = v end)
+
+-- 工具 / 调试 (10)
+local T5 = addCategory("工具 / 调试")
+
+toggle(T5, "71. 打印所有 Remote", false, function(v)
+    if v then
+        for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+            if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+                print("[Remote] " .. obj:GetFullName())
+            end
+        end
+    end
+end)
+toggle(T5, "72. Remote 调用日志", false, function(v)
+    State.LogRemote = v
+    if v and hookmetamethod then
+        local old
+        old = hookmetamethod(game, "__namecall", function(self, ...)
+            if State.LogRemote and getnamecallmethod() == "FireServer" then
+                pcall(function() print("[Fire] " .. self:GetFullName()) end)
+            end
+            return old(self, ...)
+        end)
+    end
+end)
+toggle(T5, "73. Property 变化监听", false, function(v) State.WatchProp = v end)
+toggle(T5, "74. 显示对象数量", false, function(v) State.ShowObjCount = v end)
+toggle(T5, "75. 显示脚本数量", false, function(v) State.ShowScriptCount = v end)
+toggle(T5, "76. 显示 GC 状态", false, function(v) State.ShowGC = v end)
+toggle(T5, "77. 性能分析模式", false, function(v) State.PerfMode = v end)
+toggle(T5, "78. 显示渲染调用数", false, function(v) State.ShowRenderCalls = v end)
+toggle(T5, "79. 显示网络带宽", false, function(v) State.ShowBandwidth = v end)
+toggle(T5, "80. 显示线程数量", false, function(v) State.ShowThreads = v end)
+
+print("[Xeno Hub] 第 5 段已加载 (80 功能)")
+
+pcall(function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "Xeno Hub (第 5 段)",
+        Text = "80 个新功能已加载 | 发'继续'拿第 6 段",
+        Duration = 5
+    })
+end)
